@@ -4,22 +4,12 @@
       "developmentClient": true,
       "distribution": "internal",
       "android": {
-        "buildType": "apk",
-        "gradleCommand": ":app:assembleDebug"
-      },
-      "env": {
-        "EXPO_NO_TELEMETRY": "1"
-      }
-    },
-    "preview": {
-      "distribution": "internal",
-      "android": {
         "buildType": "apk"
       }
-    },
-    "production": {}
+    }
   },
   "cli": {
-    "version": ">= 16.0.0"
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
   }
 }
