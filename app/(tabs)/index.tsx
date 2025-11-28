@@ -1,7 +1,7 @@
-// app/index.tsx
-import { useContext } from "react";
-import { View, Text } from "react-native";
+// app/index.tsx - VERSIÓN CORREGIDA
 import { Redirect } from "expo-router";
+import { useContext } from "react";
+import { ActivityIndicator, View } from "react-native";
 import { AuthContext } from "../../context/AuthContext";
 
 export default function IndexPage() {
@@ -10,13 +10,13 @@ export default function IndexPage() {
   if (loading) {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <Text>Cargando...</Text>
+        <ActivityIndicator size="large" color="#7D1522" />
       </View>
     );
   }
 
   if (!user) {
-    return <Redirect href="/(tabs)/auth/login" />;
+    return <Redirect href="/(tabs)/auth" />;
   }
 
   // Redirigir según el rol

@@ -1,4 +1,6 @@
 // app/_layout.tsx - VERSIÓN MEJORADA CON NOTIFICACIONES
+import 'react-native-reanimated';
+
 import { BaiJamjuree_400Regular, BaiJamjuree_700Bold } from '@expo-google-fonts/bai-jamjuree';
 import { Audio } from 'expo-av';
 import { useFonts } from 'expo-font';

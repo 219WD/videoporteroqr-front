@@ -34,9 +34,9 @@ export default function TabsLayout() {
       />
       {/* ✅ Añade QR a los tabs */}
       <Tabs.Screen
-        name="../qr/scan"  // Ruta relativa
+        name="qr"
         options={{
-          title: "QR Scan",
+          title: "QR",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="qr-code" size={size} color={color} />
           ),
