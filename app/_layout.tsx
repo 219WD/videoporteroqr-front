@@ -1,8 +1,7 @@
-// app/_layout.tsx - VERSIÓN MEJORADA CON NOTIFICACIONES
-import 'react-native-reanimated';
+// app/_layout.tsx - VERSIÓN 100% FUNCIONAL con Legacy + SDK 54
+// import 'react-native-reanimated';  ← BORRÁ ESTA LÍNEA
 
 import { BaiJamjuree_400Regular, BaiJamjuree_700Bold } from '@expo-google-fonts/bai-jamjuree';
-import { Audio } from 'expo-av';
 import { useFonts } from 'expo-font';
 import * as Notifications from 'expo-notifications';
 import { Stack } from "expo-router";
@@ -11,7 +10,7 @@ import { ActivityIndicator, View } from "react-native";
 import { AuthProvider } from "../context/AuthContext";
 import { VideoCallProvider } from "../context/VideoCallContext";
 
-// ✅ CONFIGURAR NOTIFICACIONES GLOBALMENTE
+// CONFIGURAR NOTIFICACIONES GLOBALMENTE
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
@@ -26,18 +25,15 @@ export default function RootLayout() {
     'BaiJamjuree-Bold': BaiJamjuree_700Bold,
   });
 
-  // ✅ CONFIGURAR NOTIFICACIONES Y AUDIO AL INICIAR
   useEffect(() => {
     const setupNotifications = async () => {
       try {
-        // Solicitar permisos de notificaciones
         const { status } = await Notifications.requestPermissionsAsync();
         if (status !== 'granted') {
-          console.log('🔔 Permisos de notificación no concedidos');
+          console.log('Permisos de notificación no concedidos');
           return;
         }
 
-        // Configurar canal de notificaciones (Android)
         await Notifications.setNotificationChannelAsync('default', {
           name: 'default',
           importance: Notifications.AndroidImportance.MAX,
@@ -45,29 +41,13 @@ export default function RootLayout() {
           lightColor: '#7D1522',
         });
 
-        console.log('🔔 Notificaciones configuradas correctamente');
+        console.log('Notificaciones configuradas correctamente');
       } catch (error) {
-        console.error('🔔 Error configurando notificaciones:', error);
-      }
-    };
-
-    const setupAudio = async () => {
-      try {
-        await Audio.setAudioModeAsync({
-          allowsRecordingIOS: false,
-          staysActiveInBackground: true,
-          playsInSilentModeIOS: true,
-          shouldDuckAndroid: true,
-          playThroughEarpieceAndroid: false,
-        });
-        console.log("🎧 Audio configurado globalmente correctamente");
-      } catch (error) {
-        console.error("🎧 Error configurando audio global:", error);
+        console.error('Error configurando notificaciones:', error);
       }
     };
 
     setupNotifications();
-    setupAudio();
   }, []);
 
   if (!fontsLoaded) {

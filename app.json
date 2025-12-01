@@ -6,8 +6,12 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": false,
-    "jsEngine": "hermes",
+    "jsEngine": "jsc",
+    "sdkVersion": "54.0.0",
+    "platforms": [
+      "ios",
+      "android"
+    ],
     "android": {
       "package": "com.yourcompany.qrdoor",
       "adaptiveIcon": {
@@ -17,28 +21,19 @@
       "permissions": [
         "CAMERA",
         "RECORD_AUDIO",
-        "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO",
         "android.permission.INTERNET",
         "android.permission.VIBRATE"
       ]
     },
+    "ios": {
+      "bundleIdentifier": "com.yourcompany.qrdoor",
+      "supportsTablet": true
+    },
     "plugins": [
       "expo-router",
-      [
-        "expo-dev-client",
-        {
-          "launchMode": "most-recent"
-        }
-      ],
-      "expo-camera",
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/images/icon.png",
-          "color": "#7D1522"
-        }
-      ]
+      "expo-font",
+      "expo-asset",
+      "expo-web-browser"
     ],
     "extra": {
       "router": {
@@ -48,9 +43,6 @@
         "projectId": "a15c1b1f-ad22-4eb7-bddc-66266cac2cce"
       }
     },
-    "owner": "jcanepa",
-    "runtimeVersion": {
-      "policy": "sdkVersion"
-    }
+    "owner": "jcanepa"
   }
 }

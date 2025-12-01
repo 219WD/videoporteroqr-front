@@ -1,5 +1,5 @@
 // components/DoorbellNotificationHandler.tsx - VERSIÓN SIMPLIFICADA
-import { Audio } from "expo-av";
+// import { Audio } from "expo-av";
 import * as Notifications from "expo-notifications";
 import { router } from "expo-router";
 import { useContext, useEffect, useRef, useState } from "react";

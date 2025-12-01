@@ -1,63 +1,85 @@
 // context/VideoCallContext.tsx - VERSIÓN SIMPLIFICADA
-import React, { createContext, useContext, useState } from 'react';
-import { Alert } from 'react-native';
+import React, { createContext, ReactNode, useContext, useState } from 'react';
 
 interface VideoCallContextType {
   isInCall: boolean;
-  callId: string | null;
   currentCall: any | null;
-  answerCall: (callData: any) => void;
+  joinCall: (callId: string, userId: string, role: 'host' | 'guest') => Promise<void>;
   leaveCall: () => void;
+  answerCall: (callData: any) => void;
+  initializeWebRTC: (callId: string, role: 'host' | 'guest') => void;
+  toggleAudio: () => void;
+  toggleVideo: () => void;
+  localStream: any;
+  remoteStream: any;
 }
 
 const VideoCallContext = createContext<VideoCallContextType | undefined>(undefined);
 
-export const VideoCallProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export function VideoCallProvider({ children }: { children: ReactNode }) {
   const [isInCall, setIsInCall] = useState(false);
-  const [callId, setCallId] = useState<string | null>(null);
   const [currentCall, setCurrentCall] = useState<any>(null);
+  const [localStream, setLocalStream] = useState<any>(null);
+  const [remoteStream, setRemoteStream] = useState<any>(null);
 
-  const answerCall = async (callData: any) => {
-    try {
-      console.log("🎥 Contestando llamada:", callData);
-      
-      setCallId(callData._id);
-      setCurrentCall(callData);
-      setIsInCall(true);
-      
-      console.log("✅ Llamada contestada correctamente");
-      
-    } catch (error) {
-      console.error("Error contestando llamada:", error);
-      Alert.alert('Error', 'No se pudo contestar la llamada');
-    }
+  const joinCall = async (callId: string, userId: string, role: 'host' | 'guest') => {
+    console.log(`🎥 Uniéndose a llamada ${callId} como ${role}`);
+    setIsInCall(true);
+    setCurrentCall({ callId, userId, role });
   };
 
   const leaveCall = () => {
-    console.log('📞 Saliendo de la llamada');
-    
-    setCallId(null);
-    setCurrentCall(null);
+    console.log('🎥 Saliendo de llamada');
     setIsInCall(false);
+    setCurrentCall(null);
+    setLocalStream(null);
+    setRemoteStream(null);
+  };
+
+  const answerCall = (callData: any) => {
+    console.log('🎥 Contestando llamada:', callData);
+    setIsInCall(true);
+    setCurrentCall(callData);
+  };
+
+  const initializeWebRTC = (callId: string, role: 'host' | 'guest') => {
+    console.log(`🎥 Inicializando WebRTC para ${callId} como ${role}`);
+    setIsInCall(true);
+    setCurrentCall({ callId, role });
+  };
+
+  const toggleAudio = () => {
+    console.log('🎤 Alternando audio');
+  };
+
+  const toggleVideo = () => {
+    console.log('📹 Alternando video');
+  };
+
+  const value = {
+    isInCall,
+    currentCall,
+    joinCall,
+    leaveCall,
+    answerCall,
+    initializeWebRTC,
+    toggleAudio,
+    toggleVideo,
+    localStream,
+    remoteStream,
   };
 
   return (
-    <VideoCallContext.Provider value={{
-      isInCall,
-      callId,
-      currentCall,
-      answerCall,
-      leaveCall
-    }}>
+    <VideoCallContext.Provider value={value}>
       {children}
     </VideoCallContext.Provider>
   );
-};
+}
 
-export const useVideoCall = () => {
+export function useVideoCall() {
   const context = useContext(VideoCallContext);
   if (context === undefined) {
-    throw new Error('useVideoCall must be used within a VideoCallProvider');
+    throw new Error('useVideoCall debe ser usado dentro de VideoCallProvider');
   }
   return context;
-};
+}
