@@ -1,7 +1,7 @@
 // app/video-call/host.tsx - VERSIÓN CORREGIDA
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import WebRTCVideoCall from '../../components/WebRTCVideoCall';
 import { useVideoCall } from '../../context/VideoCallContext';
 

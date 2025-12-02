@@ -1,5 +1,4 @@
-// components/DoorbellNotificationHandler.tsx - VERSIÓN SIMPLIFICADA
-// import { Audio } from "expo-av";
+// components/DoorbellNotificationHandler.tsx - VERSIÓN SOLO VIBRACIÓN
 import * as Notifications from "expo-notifications";
 import { router } from "expo-router";
 import { useContext, useEffect, useRef, useState } from "react";
@@ -20,7 +19,6 @@ interface DoorbellCall {
 export default function DoorbellNotificationHandler() {
   const { user } = useContext(AuthContext);
   const { answerCall, isInCall } = useVideoCall();
-  const soundRef = useRef<Audio.Sound | null>(null);
   const socketRef = useRef<any>(null);
   const [isShowingAlert, setIsShowingAlert] = useState(false);
 
@@ -52,9 +50,6 @@ export default function DoorbellNotificationHandler() {
       if (socketRef.current) {
         socketRef.current.disconnect();
       }
-      if (soundRef.current) {
-        soundRef.current.unloadAsync();
-      }
     };
   }, [user, isShowingAlert, isInCall]);
 
@@ -76,8 +71,8 @@ export default function DoorbellNotificationHandler() {
         trigger: null,
       });
 
-      // Reproducir sonido local
-      await playDoorbellSound();
+      // Solo vibración (más confiable que audio)
+      playDoorbellVibration();
 
       // Mostrar alerta
       showDoorbellAlert(call);
@@ -86,23 +81,13 @@ export default function DoorbellNotificationHandler() {
     }
   };
 
-  const playDoorbellSound = async () => {
+  const playDoorbellVibration = () => {
     try {
-      if (soundRef.current) {
-        await soundRef.current.unloadAsync();
-      }
-
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: "https://www.soundjay.com/buttons/sounds/beep-01a.mp3" },
-        { shouldPlay: true, volume: 1.0 }
-      );
-
-      soundRef.current = sound;
-      Vibration.vibrate([1000, 500, 1000], false);
-
-    } catch (error) {
-      console.error("🔔❌ Error con sonido:", error);
+      console.log("🔔🔊 Activando vibración...");
       Vibration.vibrate([1000, 500, 1000, 500, 1000], false);
+      console.log("🔔🔊 Vibración activada");
+    } catch (error) {
+      console.error("🔔❌ Error con vibración:", error);
     }
   };
 
@@ -133,33 +118,42 @@ export default function DoorbellNotificationHandler() {
     );
   };
 
-  const handleCallResponse = async (callId: string, accepted: boolean, callData?: DoorbellCall) => {
-    if (socketRef.current) {
-      socketRef.current.emit("call-response", {
-        callId,
-        response: accepted ? "accept" : "reject",
+// En handleCallResponse, asegurar que el host se una correctamente:
+const handleCallResponse = async (callId: string, accepted: boolean, callData?: DoorbellCall) => {
+  if (socketRef.current) {
+    socketRef.current.emit("call-response", {
+      callId,
+      response: accepted ? "accept" : "reject",
+    });
+  }
+
+  if (accepted && callData) {
+    // Asegurarnos de que el socket esté conectado
+    if (!socketRef.current.connected) {
+      console.log('🔄 Reconectando socket...');
+      socketRef.current.connect();
+    }
+
+    // Unirse a la sala de llamada
+    console.log(`🎥 Uniéndose a sala ${callData._id} como host`);
+    socketRef.current.emit("join-call-room", {
+      callId: callData._id,
+      userType: "host",
+      userId: user?.id
+    });
+
+    // Esperar un momento y luego navegar
+    setTimeout(() => {
+      answerCall(callData);
+      router.push({
+        pathname: "/video-call/host",
+        params: { callId: callData._id }
       });
-    }
+    }, 500);
+  }
 
-    if (accepted && callData) {
-      // Unirse a la sala de llamada
-      if (socketRef.current) {
-        socketRef.current.emit("join-call-room", {
-          callId: callData._id,
-          userType: "host",
-          userId: user?.id
-        });
-      }
-
-      // Pequeño delay para asegurar conexión
-      setTimeout(() => {
-        answerCall(callData);
-        router.push("/video-call/host");
-      }, 1000);
-    }
-
-    setIsShowingAlert(false);
-  };
+  setIsShowingAlert(false);
+};
 
   return null;
 }

@@ -3,6 +3,7 @@
     "name": "QR Door",
     "slug": "qr-door",
     "version": "1.0.0",
+    "scheme": "qrdoor",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "automatic",
@@ -22,18 +23,46 @@
         "CAMERA",
         "RECORD_AUDIO",
         "android.permission.INTERNET",
-        "android.permission.VIBRATE"
+        "android.permission.VIBRATE",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.ACCESS_NETWORK_STATE"
       ]
     },
     "ios": {
       "bundleIdentifier": "com.yourcompany.qrdoor",
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Esta aplicación necesita acceso a la cámara para video llamadas",
+        "NSMicrophoneUsageDescription": "Esta aplicación necesita acceso al micrófono para video llamadas"
+      }
     },
     "plugins": [
       "expo-router",
       "expo-font",
       "expo-asset",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/notification-icon.png",
+          "color": "#7D1522",
+          "sounds": ["./assets/sounds/doorbell.mp3"]
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Permite a $(PRODUCT_NAME) acceder a tu cámara para video llamadas.",
+          "microphonePermission": "Permite a $(PRODUCT_NAME) acceder a tu micrófono para video llamadas.",
+          "recordAudioAndroid": true
+        }
+      ],
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Permite a $(PRODUCT_NAME) acceder a tu micrófono."
+        }
+      ]
     ],
     "extra": {
       "router": {
