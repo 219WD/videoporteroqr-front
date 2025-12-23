@@ -7,12 +7,9 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "automatic",
-    "jsEngine": "jsc",
-    "sdkVersion": "54.0.0",
-    "platforms": [
-      "ios",
-      "android"
-    ],
+    // QUITA ESTA LÍNEA → "jsEngine": "jsc",
+    "platforms": ["ios", "android"],
+   
     "android": {
       "package": "com.yourcompany.qrdoor",
       "adaptiveIcon": {
@@ -22,31 +19,47 @@
       "permissions": [
         "CAMERA",
         "RECORD_AUDIO",
-        "android.permission.INTERNET",
-        "android.permission.VIBRATE",
-        "android.permission.POST_NOTIFICATIONS",
-        "android.permission.ACCESS_NETWORK_STATE"
+        "INTERNET",
+        "VIBRATE",
+        "POST_NOTIFICATIONS",
+        "ACCESS_NETWORK_STATE",
+        "MODIFY_AUDIO_SETTINGS"
       ]
     },
+   
     "ios": {
       "bundleIdentifier": "com.yourcompany.qrdoor",
       "supportsTablet": true,
       "infoPlist": {
         "NSCameraUsageDescription": "Esta aplicación necesita acceso a la cámara para video llamadas",
-        "NSMicrophoneUsageDescription": "Esta aplicación necesita acceso al micrófono para video llamadas"
+        "NSMicrophoneUsageDescription": "Esta aplicación necesita acceso al micrófono para video llamadas",
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
+        }
       }
     },
+   
     "plugins": [
       "expo-router",
-      "expo-font",
-      "expo-asset",
-      "expo-web-browser",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "kotlinVersion": "2.0.21",
+            "newArchEnabled": true
+          },
+          "ios": {
+            "deploymentTarget": "15.1"
+          }
+        }
+      ],
       [
         "expo-notifications",
         {
-          "icon": "./assets/images/notification-icon.png",
+          "icon": "./assets/images/adaptive-icon.png",
           "color": "#7D1522",
-          "sounds": ["./assets/sounds/doorbell.mp3"]
+          "sounds": ["./assets/sounds/doorbell.mp3"],
+          "mode": "production"
         }
       ],
       [
@@ -57,13 +70,8 @@
           "recordAudioAndroid": true
         }
       ],
-      [
-        "expo-av",
-        {
-          "microphonePermission": "Permite a $(PRODUCT_NAME) acceder a tu micrófono."
-        }
-      ]
     ],
+   
     "extra": {
       "router": {
         "origin": false
@@ -72,6 +80,7 @@
         "projectId": "a15c1b1f-ad22-4eb7-bddc-66266cac2cce"
       }
     },
+   
     "owner": "jcanepa"
   }
 }
