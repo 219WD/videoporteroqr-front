@@ -7,6 +7,7 @@ import { Alert, Platform, Vibration } from "react-native";
 import io from "socket.io-client";
 import { AuthContext } from "../context/AuthContext";
 import { useVideoCall } from "../context/VideoCallContext";
+import { SOCKET_URL } from "../utils/backend";
 import { api } from "../utils/api";
 
 // Configurar notificaciones
@@ -214,7 +215,7 @@ export default function DoorbellNotificationHandler() {
 
     console.log("🔔🔄 Iniciando notificaciones para host:", user.name);
 
-    socketRef.current = io("https://videoporteroqr-back.onrender.com", {
+    socketRef.current = io(SOCKET_URL, {
       transports: ["websocket", "polling"],
     });
 

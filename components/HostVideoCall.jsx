@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { mediaDevices, RTCPeerConnection, RTCSessionDescription, RTCView } from 'react-native-webrtc';
 import io from 'socket.io-client';
+import { SOCKET_URL } from '../utils/backend';
 
 const HostVideoCall = ({ callId, guestId, onEndCall, user }) => {
   const [localStream, setLocalStream] = useState(null);
@@ -26,7 +27,7 @@ const HostVideoCall = ({ callId, guestId, onEndCall, user }) => {
   const initializeCall = async () => {
     try {
       // Conectar al servidor de signaling
-      socket.current = io('https://videoporteroqr-back.onrender.com');
+      socket.current = io(SOCKET_URL);
       
       socket.current.emit('join-call-room', {
         callId,

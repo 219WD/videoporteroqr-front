@@ -1,9 +1,10 @@
 // utils/api.js
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
+import { BACKEND_URL } from './backend';
 
 export const api = axios.create({
-  baseURL: 'https://videoporteroqr-back.onrender.com',
+  baseURL: BACKEND_URL,
   timeout: 10000,
 });
 

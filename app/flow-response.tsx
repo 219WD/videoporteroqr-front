@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import io from 'socket.io-client';
 import { AuthContext } from '../context/AuthContext';
+import { SOCKET_URL } from '../utils/backend';
 import { api } from '../utils/api';
 
 export default function FlowResponseScreen() {
@@ -35,7 +36,7 @@ export default function FlowResponseScreen() {
 
   useEffect(() => {
     // Conectar socket
-    const newSocket = io('https://videoporteroqr-back.onrender.com', {
+    const newSocket = io(SOCKET_URL, {
       transports: ['websocket', 'polling'],
     });
 

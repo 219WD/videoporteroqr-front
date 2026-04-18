@@ -10,6 +10,7 @@ import {
 import { RTCPeerConnection, RTCView, mediaDevices } from 'react-native-webrtc';
 import io from 'socket.io-client';
 import { useVideoCall } from '../context/VideoCallContext';
+import { SOCKET_URL } from '../utils/backend';
 
 interface WebRTCVideoCallProps {
   userRole: 'host' | 'guest';
@@ -61,7 +62,7 @@ const WebRTCVideoCall: React.FC<WebRTCVideoCallProps> = ({ userRole, callId }) =
   };
 
   const connectToSignalingServer = () => {
-    socket.current = io('https://videoporteroqr-back.onrender.com', {
+    socket.current = io(SOCKET_URL, {
       transports: ['websocket'],
       forceNew: true,
       timeout: 10000

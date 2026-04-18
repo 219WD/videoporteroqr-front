@@ -15,6 +15,7 @@ import {
 import io from "socket.io-client";
 import { AuthContext } from "../../context/AuthContext";
 import { useVideoCall } from "../../context/VideoCallContext";
+import { SOCKET_URL } from "../../utils/backend";
 import { api } from "../../utils/api";
 
 interface Message {
@@ -304,7 +305,7 @@ export default function GuestDashboard() {
     try {
       console.log("🔌 Configurando Socket.io para respuesta en tiempo real...");
 
-      socketRef.current = io("https://videoporteroqr-back.onrender.com", {
+      socketRef.current = io(SOCKET_URL, {
         transports: ["websocket"],
       });
 

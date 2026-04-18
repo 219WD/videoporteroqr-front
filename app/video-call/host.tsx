@@ -5,6 +5,7 @@ import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { RTCIceCandidate, RTCPeerConnection, RTCSessionDescription, RTCView } from 'react-native-webrtc';
 import io from 'socket.io-client';
 import { AuthContext } from '../../context/AuthContext';
+import { SOCKET_URL } from '../../utils/backend';
 import { createPeerConnection } from '../../utils/webrtc';
 
 export default function HostVideoCallScreen() {
@@ -22,7 +23,7 @@ export default function HostVideoCallScreen() {
 
   useEffect(() => {
     // Conectar socket
-    const newSocket = io('https://videoporteroqr-back.onrender.com', {
+    const newSocket = io(SOCKET_URL, {
       transports: ['websocket', 'polling'],
     });
 
