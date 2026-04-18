@@ -21,7 +21,6 @@
         "RECORD_AUDIO",
         "INTERNET",
         "VIBRATE",
-        "POST_NOTIFICATIONS",
         "ACCESS_NETWORK_STATE",
         "MODIFY_AUDIO_SETTINGS"
       ]
@@ -51,15 +50,6 @@
           "ios": {
             "deploymentTarget": "15.1"
           }
-        }
-      ],
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/images/adaptive-icon.png",
-          "color": "#7D1522",
-          "sounds": ["./assets/sounds/doorbell.mp3"],
-          "mode": "production"
         }
       ],
       [

@@ -1,23 +1,12 @@
 // components/DoorbellNotificationHandler.tsx - VERSIÓN CON SONIDO OPTIMIZADA
 import { Audio } from 'expo-av';
-import * as Notifications from "expo-notifications";
 import { router } from "expo-router";
 import { useContext, useEffect, useRef, useState } from "react";
-import { Alert, Platform, Vibration } from "react-native";
+import { Alert, Vibration } from "react-native";
 import io from "socket.io-client";
 import { AuthContext } from "../context/AuthContext";
 import { useVideoCall } from "../context/VideoCallContext";
 import { SOCKET_URL } from "../utils/backend";
-import { api } from "../utils/api";
-
-// Configurar notificaciones
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
 
 // Sonidos disponibles
 const DOORBELL_SOUND_URL =
@@ -203,11 +192,6 @@ export default function DoorbellNotificationHandler() {
     }
   };
 
-  // Registrar token de notificaciones push
-  useEffect(() => {
-    registerForPushNotifications();
-  }, [user]);
-
   useEffect(() => {
     if (!user || user.role !== "host" || isInCall) {
       return;
@@ -276,53 +260,11 @@ export default function DoorbellNotificationHandler() {
     };
   }, [user, isShowingAlert, isInCall]);
 
-  const registerForPushNotifications = async () => {
-    if (!user || Platform.OS === "web") return;
-
-    try {
-      const { status: existingStatus } = await Notifications.getPermissionsAsync();
-      let finalStatus = existingStatus;
-
-      if (existingStatus !== "granted") {
-        const { status } = await Notifications.requestPermissionsAsync();
-        finalStatus = status;
-      }
-
-      if (finalStatus === "granted") {
-        const token = (await Notifications.getExpoPushTokenAsync()).data;
-
-        if (user.id && token) {
-          await api.post("/auth/save-push-token", { pushToken: token });
-          console.log("🔔✅ Token de notificaciones guardado");
-        }
-      }
-    } catch (error) {
-      console.error("🔔❌ Error registrando notificaciones:", error);
-    }
-  };
-
   // Manejar llamada tradicional
   const handleIncomingCall = async (call: DoorbellCall) => {
     try {
       await playDoorbellSound();
       playNotificationVibration("call");
-
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: "🔔 ¡Tienes una visita!",
-          body: `${call.guestName} está en la puerta`,
-          data: {
-            callId: call._id,
-            guestName: call.guestName,
-            type: "doorbell_call",
-            guestEmail: call.guestEmail,
-            guestPhone: call.guestPhone,
-            guestCompany: call.guestCompany,
-          },
-          sound: true,
-        },
-        trigger: null,
-      });
 
       showCallAlert(call);
     } catch (error) {
@@ -470,21 +412,6 @@ export default function DoorbellNotificationHandler() {
   const handleNewMessage = async (data: any) => {
     try {
       playNotificationVibration("message");
-
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: "💬 Nuevo mensaje",
-          body: `${data.guestName}: ${data.message?.substring(0, 50)}...`,
-          data: {
-            callId: data.callId,
-            guestName: data.guestName,
-            type: "new_message",
-            sender: data.sender,
-          },
-          sound: true,
-        },
-        trigger: null,
-      });
 
       Alert.alert(
         "💬 Nuevo mensaje",
@@ -676,3 +603,4 @@ export default function DoorbellNotificationHandler() {
 
   return null;
 }
+

@@ -3,7 +3,6 @@ import React, { useState } from 'react';
 import { View, TextInput, Button, Text } from 'react-native';
 import API from '../utils/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { registerForPushNotificationsAsync } from '../utils/push';
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
@@ -16,11 +15,6 @@ export default function LoginScreen({ navigation }) {
       const token = res.data.token;
       const user = res.data.user;
       await AsyncStorage.setItem('token', token);
-      // register push token
-      const pushToken = await registerForPushNotificationsAsync();
-      if (pushToken) {
-        await API.post('/auth/save-push-token', { pushToken }, { headers: { Authorization: `Bearer ${token}` }});
-      }
       // navigate by role
       if (user.role === 'admin') navigation.replace('AdminDashboard');
       else if (user.role === 'host') navigation.replace('HostDashboard');
