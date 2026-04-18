@@ -116,7 +116,7 @@ export default function HostDashboard() {
 
     } catch (error) {
       console.error("Error loading host data:", error);
-      Alert.alert("Error", "No se pudieron cargar los datos del host");
+      Alert.alert("Error", "No se pudieron cargar los datos");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -279,7 +279,7 @@ export default function HostDashboard() {
   };
 
   const generateQRCode = async () => {
-    router.push("/register-host");
+    loadHostData();
   };
 
   // Función para formatear fecha y hora
@@ -497,7 +497,7 @@ export default function HostDashboard() {
   if (loading && activeTab === 'info') {
     return (
       <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>Cargando datos del host...</Text>
+        <Text style={styles.loadingText}>Cargando datos...</Text>
         <TouchableOpacity style={styles.button} onPress={refreshData}>
           <Text style={styles.buttonText}>Reintentar</Text>
         </TouchableOpacity>
@@ -516,7 +516,7 @@ export default function HostDashboard() {
           style={styles.logo}
           resizeMode="contain"
         />
-        <Text style={styles.headerTitle}>Panel del Host</Text>
+        <Text style={styles.headerTitle}>Panel Principal</Text>
       </View>
 
       {/* Tabs */}
@@ -534,7 +534,7 @@ export default function HostDashboard() {
           onPress={() => setActiveTab('guests')}
         >
           <Text style={[styles.tabText, activeTab === 'guests' && styles.activeTabText]}>
-            Invitados ({guests.length})
+            Contactos ({guests.length})
           </Text>
         </TouchableOpacity>
         <TouchableOpacity 
@@ -595,7 +595,7 @@ export default function HostDashboard() {
                   No tienes un código QR generado
                 </Text>
                 <TouchableOpacity style={styles.button} onPress={generateQRCode}>
-                  <Text style={styles.buttonText}>Generar QR</Text>
+                  <Text style={styles.buttonText}>Actualizar QR</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -606,7 +606,7 @@ export default function HostDashboard() {
           <View style={styles.guestsSection}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>
-                Tus Invitados ({guests.length})
+                Tus contactos ({guests.length})
               </Text>
               <TouchableOpacity style={styles.secondaryButton} onPress={refreshData}>
                 <Text style={styles.secondaryButtonText}>Actualizar</Text>
@@ -615,7 +615,7 @@ export default function HostDashboard() {
 
             {guests.length === 0 ? (
               <Text style={styles.emptyText}>
-                No hay invitados aún. Comparte tu código QR para que se unan.
+                No hay contactos aún. Comparte tu código QR para que se unan.
               </Text>
             ) : (
               <FlatList

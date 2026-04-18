@@ -96,7 +96,7 @@ export default function TabsLayout() {
       }} />
       
       {/* Ocultar otras pantallas */}
-      {['qr', 'messages', 'guest-messages', 'dashboard', 'video-call', 'register-host'].map((screen) => (
+      {['qr', 'messages', 'dashboard', 'video-call'].map((screen) => (
         <Tabs.Screen
           key={screen}
           name={screen}

@@ -65,8 +65,6 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="dashboard" options={{ headerShown: false }} />
           <Stack.Screen name="qr" options={{ headerShown: false }} />
-          <Stack.Screen name="register-host" options={{ title: "Registrar Host" }} />
-          <Stack.Screen name="register-guest" options={{ title: "Registro Invitado" }} />
           <Stack.Screen name="video-call" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
           <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
         </Stack>

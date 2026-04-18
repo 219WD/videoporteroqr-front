@@ -65,8 +65,9 @@ export function AuthProvider({ children }) {
         await AsyncStorage.setItem("token", data.token);
       }
 
-      setUser(data.user || data);
-      return data.user || data;
+      const userData = data.user || data.host || data;
+      setUser(userData);
+      return userData;
 
     } catch (error) {
       console.error("🔐 Error en register:", error);
@@ -78,7 +79,7 @@ export function AuthProvider({ children }) {
     try {
       console.log("🔐 RegisterHost llamado:", email);
       
-      const { data } = await api.post("/auth/register-host", {
+      const { data } = await api.post("/auth/register", {
         name,
         email,
         password,

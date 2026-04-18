@@ -1,87 +1,103 @@
-// app/(tabs)/auth/register.tsx - VERSIÓN ACTUALIZADA
-import { router, useLocalSearchParams } from "expo-router";
-import { Image, Text, TouchableOpacity, View } from "react-native";
+import { router } from "expo-router";
+import { useContext, useState } from "react";
+import { Alert, Image, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { AuthContext } from "../../../context/AuthContext";
 
-export default function RegisterType() {
-  const params = useLocalSearchParams();
-  const qrCode = params.code as string;
+export default function RegisterScreen() {
+  const { register } = useContext(AuthContext);
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+  });
+  const [loading, setLoading] = useState(false);
 
-  // Si viene con código QR, es registro de guest
-  if (qrCode) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.logoContainer}>
-          <Image 
-            source={{ uri: 'https://res.cloudinary.com/dtxdv136u/image/upload/v1763499836/logo_alb_ged07k.png' }}
-            style={styles.logo}
-            resizeMode="contain"
-          />
-        </View>
+  const handleRegister = async () => {
+    if (!form.name || !form.email || !form.password) {
+      Alert.alert("Error", "Por favor completa todos los campos");
+      return;
+    }
 
-        <Text style={styles.title}>Registro de Invitado</Text>
-        <Text style={styles.subtitle}>Te estás registrando como invitado usando un código QR</Text>
-        
-        <TouchableOpacity 
-          style={styles.button}
-          onPress={() => router.push(`/register-guest?code=${qrCode}`)}
-        >
-          <Text style={styles.buttonText}>Continuar con Registro</Text>
-        </TouchableOpacity>
+    setLoading(true);
+    try {
+      const user = await register(form.name, form.email, form.password, "host");
 
-        <TouchableOpacity 
-          style={styles.secondaryButton}
-          onPress={() => router.back()}
-        >
-          <Text style={styles.secondaryButtonText}>Cancelar</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
+      Alert.alert("Cuenta creada", "Ya puedes ingresar con tus credenciales", [
+        {
+          text: "OK",
+          onPress: () => {
+            if (user?.role === "admin") {
+              router.replace("/dashboard/admin");
+            } else {
+              router.replace("/dashboard/host");
+            }
+          },
+        },
+      ]);
+    } catch (error: any) {
+      console.error("Register error:", error);
+      Alert.alert("Error", error.response?.data?.error || "Error en el registro");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // Sin código QR, elegir tipo de registro
   return (
     <View style={styles.container}>
       <View style={styles.logoContainer}>
-        <Image 
-          source={{ uri: 'https://res.cloudinary.com/dtxdv136u/image/upload/v1763499836/logo_alb_ged07k.png' }}
+        <Image
+          source={{ uri: "https://res.cloudinary.com/dtxdv136u/image/upload/v1763499836/logo_alb_ged07k.png" }}
           style={styles.logo}
           resizeMode="contain"
         />
       </View>
 
-      <Text style={styles.title}>Selecciona tu tipo de registro</Text>
+      <Text style={styles.title}>Registrarse</Text>
+      <Text style={styles.subtitle}>Crea tu acceso para usar la app</Text>
 
-      <View style={styles.optionContainer}>
-        <Text style={styles.optionTitle}>¿Eres un Host?</Text>
-        <Text style={styles.optionDescription}>
-          Crea una sala y genera códigos QR para invitados
-        </Text>
-        <TouchableOpacity 
-          style={styles.button}
-          onPress={() => router.push("/register-host")}
-        >
-          <Text style={styles.buttonText}>Registrarse como Host</Text>
-        </TouchableOpacity>
-      </View>
+      <Text style={styles.label}>Nombre completo</Text>
+      <TextInput
+        style={styles.input}
+        value={form.name}
+        onChangeText={(text) => setForm({ ...form, name: text })}
+        placeholder="Tu nombre"
+        placeholderTextColor="#999"
+      />
 
-      <View style={styles.optionContainer}>
-        <Text style={styles.optionTitle}>¿Eres un Invitado?</Text>
-        <Text style={styles.optionDescription}>
-          Escanea un código QR para unirte a una sala
-        </Text>
-        <TouchableOpacity 
-          style={styles.secondaryButton}
-          onPress={() => router.push("/qr/scan")} // ← CAMBIADO: Ahora va directo al scanner
-        >
-          <Text style={styles.secondaryButtonText}>Registrarse como Invitado</Text>
-        </TouchableOpacity>
-      </View>
+      <Text style={styles.label}>Email</Text>
+      <TextInput
+        style={styles.input}
+        value={form.email}
+        onChangeText={(text) => setForm({ ...form, email: text })}
+        autoCapitalize="none"
+        placeholder="tu@email.com"
+        placeholderTextColor="#999"
+        keyboardType="email-address"
+      />
 
-      <TouchableOpacity 
-        style={styles.linkButton}
+      <Text style={styles.label}>Contraseña</Text>
+      <TextInput
+        style={styles.input}
+        secureTextEntry
+        value={form.password}
+        onChangeText={(text) => setForm({ ...form, password: text })}
+        placeholder="Mínimo 6 caracteres"
+        placeholderTextColor="#999"
+      />
+
+      <TouchableOpacity
+        style={[styles.button, loading && styles.buttonDisabled]}
+        onPress={handleRegister}
+        disabled={loading}
+      >
+        <Text style={styles.buttonText}>{loading ? "Registrando..." : "Crear cuenta"}</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.secondaryButton}
         onPress={() => router.push("/(tabs)/auth/login")}
       >
-        <Text style={styles.linkButtonText}>Ya tengo cuenta - Iniciar Sesión</Text>
+        <Text style={styles.secondaryButtonText}>Ya tengo cuenta</Text>
       </TouchableOpacity>
     </View>
   );
@@ -96,41 +112,43 @@ const styles = {
   },
   logoContainer: {
     alignItems: "center",
+    marginBottom: 18,
   },
   logo: {
-    width: 140,
-    height: 140,
+    width: 120,
+    height: 120,
   },
   title: {
-    fontSize: 25,
-    marginBottom: 20,
+    fontSize: 30,
+    marginBottom: 8,
     textAlign: "center",
     color: "#3D3D3D",
     fontFamily: "BaiJamjuree-Bold",
   },
   subtitle: {
     textAlign: "center",
-    marginBottom: 30,
+    color: "#666",
+    fontFamily: "BaiJamjuree",
+    fontSize: 15,
+    marginBottom: 24,
+  },
+  label: {
+    color: "#3D3D3D",
+    marginBottom: 10,
+    fontFamily: "BaiJamjuree",
+    fontSize: 16,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: "#3D3D3D",
+    padding: 16,
+    marginBottom: 20,
+    borderRadius: 10,
+    backgroundColor: "#FAFFFF",
     color: "#3D3D3D",
     fontFamily: "BaiJamjuree",
     fontSize: 16,
-    lineHeight: 22,
-  },
-  optionContainer: {
-    marginBottom: 30,
-  },
-  optionTitle: {
-    fontSize: 20,
-    marginBottom: 8,
-    color: "#3D3D3D",
-    fontFamily: "BaiJamjuree-Bold",
-  },
-  optionDescription: {
-    color: '#666',
-    marginBottom: 20,
-    fontFamily: "BaiJamjuree",
-    fontSize: 15,
-    lineHeight: 20,
+    minHeight: 50,
   },
   button: {
     backgroundColor: "#7D1522",
@@ -139,7 +157,10 @@ const styles = {
     alignItems: "center",
     marginBottom: 15,
     minHeight: 60,
-    justifyContent: 'center',
+    justifyContent: "center",
+  },
+  buttonDisabled: {
+    backgroundColor: "#B8B8B8",
   },
   buttonText: {
     color: "#FAFFFF",
@@ -150,28 +171,14 @@ const styles = {
     padding: 16,
     borderRadius: 10,
     alignItems: "center",
-    marginBottom: 12,
     borderWidth: 1,
     borderColor: "#3D3D3D",
     minHeight: 50,
-    justifyContent: 'center',
+    justifyContent: "center",
   },
   secondaryButtonText: {
     color: "#3D3D3D",
     fontSize: 16,
     fontFamily: "BaiJamjuree",
-  },
-  linkButton: {
-    padding: 16,
-    borderRadius: 10,
-    alignItems: "center",
-    marginTop: 20,
-    minHeight: 50,
-    justifyContent: 'center',
-  },
-  linkButtonText: {
-    color: "#7D1522",
-    fontSize: 16,
-    fontFamily: "BaiJamjuree-Bold",
   },
 };

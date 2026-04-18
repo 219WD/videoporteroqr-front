@@ -70,12 +70,14 @@ export default function ScanQR() {
       setScannedCode(qrCode);
       console.log("📱 QR escaneado:", qrCode);
 
-      // 🔥 NUEVA LÓGICA: Verificar si el usuario YA está logueado
       if (user) {
-        // Usuario YA logueado - unirse automáticamente al host E INICIAR VIDEOCALL
-        await joinHostAndStartVideoCall(qrCode);
+        Alert.alert(
+          "Código detectado",
+          "Este escáner está pensado para visitantes. Usa las opciones del panel para continuar."
+        );
+        setScanning(true);
+        setProcessing(false);
       } else {
-        // Usuario NO logueado - mostrar opciones
         setProcessing(false);
       }
 
@@ -183,13 +185,11 @@ export default function ScanQR() {
   };
 
   const handleRegister = () => {
-    if (!scannedCode) return;
-    router.push(`/register-guest?code=${scannedCode}`);
+    router.push("/(tabs)/auth/register");
   };
 
   const handleLogin = () => {
-    if (!scannedCode) return;
-    router.push(`/(tabs)/auth/login?qrCode=${scannedCode}`);
+    router.push("/(tabs)/auth/login");
   };
 
   const handleScanAgain = () => {
@@ -234,16 +234,16 @@ export default function ScanQR() {
           <Text style={styles.codeText}>Código: {scannedCode}</Text>
         </View>
         <Text style={styles.message}>
-          Te estás uniendo a una sala. Elige una opción:
+          Si no tienes acceso, crea una cuenta o ingresa con tus credenciales:
         </Text>
         
         <View style={styles.buttonContainer}>
           <TouchableOpacity style={styles.button} onPress={handleRegister}>
-            <Text style={styles.buttonText}>Registrarme como Invitado</Text>
+            <Text style={styles.buttonText}>Crear cuenta</Text>
           </TouchableOpacity>
           
           <TouchableOpacity style={styles.secondaryButton} onPress={handleLogin}>
-            <Text style={styles.secondaryButtonText}>Ya tengo cuenta - Iniciar Sesión</Text>
+            <Text style={styles.secondaryButtonText}>Ingresar</Text>
           </TouchableOpacity>
           
           <TouchableOpacity style={styles.outlineButton} onPress={handleScanAgain}>

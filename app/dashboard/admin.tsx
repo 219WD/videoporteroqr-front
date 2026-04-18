@@ -158,7 +158,7 @@ export default function AdminDashboard() {
           onPress={() => setActiveTab('guests')}
         >
           <Text style={[styles.tabText, activeTab === 'guests' && styles.activeTabText]}>
-            Guests ({guests.length})
+            Usuarios ({guests.length})
           </Text>
         </TouchableOpacity>
       </View>
@@ -238,13 +238,13 @@ export default function AdminDashboard() {
         {activeTab === 'guests' && (
           <View style={styles.listSection}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Guests Registrados ({guests.length})</Text>
+              <Text style={styles.sectionTitle}>Usuarios Registrados ({guests.length})</Text>
               <TouchableOpacity style={styles.secondaryButton} onPress={refreshData}>
                 <Text style={styles.secondaryButtonText}>Actualizar</Text>
               </TouchableOpacity>
             </View>
             {guests.length === 0 ? (
-              <Text style={styles.emptyText}>No hay guests registrados</Text>
+              <Text style={styles.emptyText}>No hay usuarios registrados</Text>
             ) : (
               <FlatList
                 data={guests}

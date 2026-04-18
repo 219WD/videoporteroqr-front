@@ -1,9 +1,6 @@
 import { Stack } from "expo-router";
-import { useUserRole } from "../../hooks/useUserRole";
 
 export default function DashboardLayout() {
-  const userRole = useUserRole();
-
   return (
     <Stack
       screenOptions={{
@@ -17,10 +14,6 @@ export default function DashboardLayout() {
       <Stack.Screen 
         name="host" 
         options={{ title: "Host Dashboard" }}
-      />
-      <Stack.Screen 
-        name="guest" 
-        options={{ title: "Guest Dashboard" }}
       />
     </Stack>
   );

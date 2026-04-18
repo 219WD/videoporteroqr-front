@@ -21,6 +21,5 @@ export default function IndexPage() {
 
   // Redirigir según el rol
   if (user.role === "admin") return <Redirect href="/dashboard/admin" />;
-  if (user.role === "host") return <Redirect href="/dashboard/host" />;
-  return <Redirect href="/dashboard/guest" />;
+  return <Redirect href="/dashboard/host" />;
 }
