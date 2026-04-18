@@ -18,11 +18,12 @@ interface Guest {
   name: string;
   email: string;
   createdAt: string;
-  hostRef?: {
+  hostRefs?: {
     id: string;
     name: string;
     email: string;
-  };
+    linkedAt?: string | null;
+  }[];
 }
 
 interface Stats {
@@ -92,7 +93,7 @@ export default function AdminDashboard() {
         text: "Sí", 
         onPress: () => {
           logout();
-          router.replace("/(tabs)/auth/login");
+          router.replace("/auth/login");
         }
       }
     ]);
@@ -254,10 +255,16 @@ export default function AdminDashboard() {
                   <View style={styles.listItem}>
                     <Text style={styles.itemName}>{item.name}</Text>
                     <Text style={styles.itemEmail}>{item.email}</Text>
-                    {item.hostRef && (
-                      <View style={styles.hostRef}>
-                        <Text style={styles.hostRefLabel}>Host:</Text>
-                        <Text style={styles.hostRefText}>{item.hostRef.name} ({item.hostRef.email})</Text>
+                    {item.hostRefs && item.hostRefs.length > 0 && (
+                      <View style={styles.hostRefsContainer}>
+                        <Text style={styles.hostRefsLabel}>Vinculado con:</Text>
+                        {item.hostRefs.map((host) => (
+                          <View key={host.id} style={styles.hostRef}>
+                            <Text style={styles.hostRefText}>
+                              {host.name} ({host.email})
+                            </Text>
+                          </View>
+                        ))}
                       </View>
                     )}
                     <Text style={styles.itemDate}>
@@ -487,15 +494,21 @@ const styles = {
     fontFamily: "BaiJamjuree",
     marginTop: 4,
   },
-  hostRef: {
-    flexDirection: 'row',
-    marginBottom: 8,
+  hostRefsContainer: {
+    marginTop: 8,
+    padding: 8,
+    backgroundColor: '#F7F7F7',
+    borderRadius: 8,
   },
-  hostRefLabel: {
+  hostRefsLabel: {
     color: "#666",
     fontSize: 12,
     fontFamily: "BaiJamjuree-Bold",
-    marginRight: 5,
+    marginBottom: 6,
+  },
+  hostRef: {
+    flexDirection: 'row',
+    marginBottom: 4,
   },
   hostRefText: {
     color: "#666",

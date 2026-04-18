@@ -422,7 +422,7 @@ export default function DoorbellNotificationHandler() {
             text: "Ver conversación",
             onPress: () => {
               router.push({
-                pathname: "/(tabs)/messages",
+                pathname: "/messages",
                 params: { flowId: data.callId },
               });
             },

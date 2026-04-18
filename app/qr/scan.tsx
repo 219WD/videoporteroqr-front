@@ -1,13 +1,19 @@
-// app/qr/scan.tsx - VERSIÓN CON VIDEOCALL AUTOMÁTICO
-import { CameraView, useCameraPermissions } from "expo-camera";
-import { router } from "expo-router";
-import { useContext, useState } from "react";
-import { ActivityIndicator, Alert, Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { AuthContext } from "../../context/AuthContext";
-import { useVideoCall } from "../../context/VideoCallContext";
-import { api } from "../../utils/api";
+import { CameraView, useCameraPermissions } from 'expo-camera';
+import { router } from 'expo-router';
+import { useContext, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { AuthContext } from '../../context/AuthContext';
+import { api } from '../../utils/api';
 
-// Icono de checkmark en SVG como componente
 const CheckIcon = () => (
   <View style={styles.checkIcon}>
     <Text style={styles.checkIconText}>✓</Text>
@@ -17,10 +23,10 @@ const CheckIcon = () => (
 export default function ScanQR() {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanning, setScanning] = useState(true);
-  const [scannedCode, setScannedCode] = useState("");
+  const [scannedCode, setScannedCode] = useState('');
   const [processing, setProcessing] = useState(false);
+  const insets = useSafeAreaInsets();
   const { user } = useContext(AuthContext);
-  const { joinCall } = useVideoCall(); // ✅ Nuevo: contexto de videollamada
 
   if (!permission) {
     return <View />;
@@ -28,8 +34,8 @@ export default function ScanQR() {
 
   if (!permission.granted) {
     return (
-      <View style={styles.container}>
-        <Image 
+      <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
+        <Image
           source={{ uri: 'https://res.cloudinary.com/dtxdv136u/image/upload/v1763499836/logo_alb_ged07k.png' }}
           style={styles.logo}
           resizeMode="contain"
@@ -38,223 +44,160 @@ export default function ScanQR() {
         <TouchableOpacity style={styles.button} onPress={requestPermission}>
           <Text style={styles.buttonText}>Dar permiso</Text>
         </TouchableOpacity>
-      </View>
+      </SafeAreaView>
     );
   }
 
-  const handleBarCodeScanned = async ({ data }: { data: string }) => {
-    if (!scanning || processing) return;
-    
-    setScanning(false);
-    setProcessing(true);
-    
+  const extractQrCode = (data: string) => {
     try {
-      // Extraer código QR
-      let qrCode = data;
-      try {
-        const url = new URL(data);
-        const urlParams = new URLSearchParams(url.search);
-        qrCode = urlParams.get('code') || data;
-      } catch (error) {
-        // Si no es URL válida, usar el data directo
-        qrCode = data;
+      const url = new URL(data);
+      const urlParams = new URLSearchParams(url.search);
+      return urlParams.get('code') || data;
+    } catch {
+      return data;
+    }
+  };
+
+  const handleLoggedInScan = async (qrCode: string) => {
+    try {
+      const hostResponse = await api.get(`/auth/host-by-qr/${encodeURIComponent(qrCode)}`);
+      const hostId = hostResponse.data?.host?.id || null;
+      const hostName = hostResponse.data?.host?.name || 'el host';
+
+      if (hostId && user?.id && String(hostId) === String(user.id)) {
+        Alert.alert(
+          'QR inválido',
+          'Ese QR es el de tu propia cuenta. Escaneá el QR del otro usuario para vincularte.',
+        );
+        setScanning(true);
+        setProcessing(false);
+        return;
       }
 
+      const response = await api.post('/auth/join-host-by-qr', { code: qrCode });
+      const alreadyLinked = !!response.data?.alreadyLinked;
+
+      Alert.alert(
+        'Vinculación exitosa',
+        alreadyLinked
+          ? `Ya estabas vinculado con ${hostName}.`
+          : `Tu cuenta quedó vinculada con ${hostName}.`,
+        [
+          {
+            text: 'Continuar',
+            onPress: () => router.replace('/dashboard/host'),
+          },
+        ],
+      );
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.error || 'Error al vincularte con el host';
+      Alert.alert('Error', errorMessage);
+      setScanning(true);
+      setProcessing(false);
+    }
+  };
+
+  const handleBarCodeScanned = async ({ data }: { data: string }) => {
+    if (!scanning || processing) return;
+
+    setScanning(false);
+    setProcessing(true);
+
+    try {
+      const qrCode = extractQrCode(data);
+
       if (!qrCode) {
-        Alert.alert("Error", "QR no válido");
+        Alert.alert('Error', 'QR no válido');
         setScanning(true);
         setProcessing(false);
         return;
       }
 
       setScannedCode(qrCode);
-      console.log("📱 QR escaneado:", qrCode);
+      console.log('QR escaneado:', qrCode);
 
       if (user) {
-        Alert.alert(
-          "Código detectado",
-          "Este escáner está pensado para visitantes. Usa las opciones del panel para continuar."
-        );
-        setScanning(true);
-        setProcessing(false);
-      } else {
-        setProcessing(false);
+        await handleLoggedInScan(qrCode);
+        return;
       }
 
+      setProcessing(false);
     } catch (error) {
-      console.error("Error procesando QR:", error);
-      Alert.alert("Error", "Error al procesar el código QR");
+      console.error('Error procesando QR:', error);
+      Alert.alert('Error', 'Error al procesar el código QR');
       setScanning(true);
       setProcessing(false);
-    }
-  };
-
-  // ✅ NUEVA FUNCIÓN: Unirse al host e iniciar videollamada automática
-  const joinHostAndStartVideoCall = async (qrCode: string) => {
-    try {
-      console.log("📱 Usuario logueado, uniéndose al host e iniciando videollamada...");
-      
-      // 1. Unirse al host
-      const joinResponse = await api.post(`/auth/join-host?code=${qrCode}`);
-      
-      // 2. Iniciar videollamada automática
-      const videoCallResponse = await api.post('/videocall/start-automatic');
-      const callId = videoCallResponse.data.callId;
-      
-      console.log("🎥 Videollamada iniciada con ID:", callId);
-      
-      // 3. Unirse a la videollamada como guest
-      await joinCall(callId, user!.id, 'guest');
-      
-      // 4. Navegar directamente a la pantalla de videollamada
-      router.replace("/video-call");
-      
-    } catch (error: any) {
-      console.error("Error joining host or starting video call:", error);
-      const errorMessage = error.response?.data?.error || "Error al unirse a la sala";
-      
-      if (errorMessage.includes("Ya estás en esta sala")) {
-        // Si ya está en la sala, iniciar videollamada directamente
-        Alert.alert(
-          "Ya estás en esta sala",
-          "¿Quieres iniciar una videollamada con el host?",
-          [
-            { 
-              text: "Cancelar", 
-              style: "cancel",
-              onPress: () => {
-                setProcessing(false);
-                setScanning(true);
-              }
-            },
-            { 
-              text: "Iniciar Videollamada", 
-              onPress: async () => {
-                try {
-                  const videoCallResponse = await api.post('/videocall/start-automatic');
-                  const callId = videoCallResponse.data.callId;
-                  await joinCall(callId, user!.id, 'guest');
-                  router.replace("/video-call");
-                } catch (videoError) {
-                  Alert.alert("Error", "No se pudo iniciar la videollamada");
-                  setProcessing(false);
-                  setScanning(true);
-                }
-              }
-            }
-          ]
-        );
-      } else if (errorMessage.includes("Ya estás en otra sala")) {
-        Alert.alert(
-          "Atención",
-          errorMessage,
-          [
-            { text: "Cancelar", style: "cancel" },
-            { 
-              text: "Salir y unirse", 
-              onPress: () => leaveAndJoinWithVideoCall(qrCode)
-            }
-          ]
-        );
-      } else {
-        Alert.alert("Error", errorMessage);
-        setProcessing(false);
-        setScanning(true);
-      }
-    }
-  };
-
-  // ✅ NUEVA FUNCIÓN: Salir de sala actual y unirse a nueva con videollamada
-  const leaveAndJoinWithVideoCall = async (newQrCode: string) => {
-    try {
-      await api.post("/auth/leave-host");
-      const joinResponse = await api.post(`/auth/join-host?code=${newQrCode}`);
-      
-      // Iniciar videollamada después de unirse
-      const videoCallResponse = await api.post('/videocall/start-automatic');
-      const callId = videoCallResponse.data.callId;
-      
-      await joinCall(callId, user!.id, 'guest');
-      router.replace("/video-call");
-      
-    } catch (error: any) {
-      Alert.alert("Error", error.response?.data?.error || "Error al cambiar de sala");
-      setProcessing(false);
-      setScanning(true);
     }
   };
 
   const handleRegister = () => {
-    router.push("/(tabs)/auth/register");
+    router.push('/auth/register');
   };
 
   const handleLogin = () => {
-    router.push("/(tabs)/auth/login");
+    router.push('/auth/login');
   };
 
   const handleScanAgain = () => {
     setScanning(true);
-    setScannedCode("");
+    setScannedCode('');
     setProcessing(false);
   };
 
-  // Si está procesando, mostrar loading
   if (processing) {
     return (
-      <View style={styles.container}>
-        <Image 
+      <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
+        <Image
           source={{ uri: 'https://res.cloudinary.com/dtxdv136u/image/upload/v1763499836/logo_alb_ged07k.png' }}
           style={styles.logo}
           resizeMode="contain"
         />
         <ActivityIndicator size="large" color="#7D1522" />
         <Text style={[styles.message, { marginTop: 20 }]}>
-          {user ? "Iniciando videollamada..." : "Procesando..."}
+          {user ? 'Vinculando tu cuenta...' : 'Procesando...'}
         </Text>
-      </View>
+      </SafeAreaView>
     );
   }
 
-  // Pantalla de resultados después de escanear (solo para usuarios NO logueados)
   if (!scanning && scannedCode && !user) {
     return (
-      <View style={styles.resultContainer}>
-        <Image 
+      <SafeAreaView style={styles.resultContainer} edges={['top', 'left', 'right', 'bottom']}>
+        <Image
           source={{ uri: 'https://res.cloudinary.com/dtxdv136u/image/upload/v1763499836/logo_alb_ged07k.png' }}
           style={styles.logo}
           resizeMode="contain"
         />
-        
+
         <View style={styles.successHeader}>
           <CheckIcon />
           <Text style={styles.title}>QR Escaneado</Text>
         </View>
-        
+
         <View style={styles.codeContainer}>
           <Text style={styles.codeText}>Código: {scannedCode}</Text>
         </View>
         <Text style={styles.message}>
-          Si no tienes acceso, crea una cuenta o ingresa con tus credenciales:
+          Iniciá sesión para asociar este QR con tu cuenta.
         </Text>
-        
+
         <View style={styles.buttonContainer}>
           <TouchableOpacity style={styles.button} onPress={handleRegister}>
             <Text style={styles.buttonText}>Crear cuenta</Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity style={styles.secondaryButton} onPress={handleLogin}>
             <Text style={styles.secondaryButtonText}>Ingresar</Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity style={styles.outlineButton} onPress={handleScanAgain}>
             <Text style={styles.outlineButtonText}>Escanear otro código</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </SafeAreaView>
     );
   }
 
-  // Pantalla del scanner
   return (
     <View style={styles.cameraContainer}>
       <CameraView
@@ -262,25 +205,23 @@ export default function ScanQR() {
         facing="back"
         onBarcodeScanned={scanning ? handleBarCodeScanned : undefined}
         barcodeScannerSettings={{
-          barcodeTypes: ["qr"]
+          barcodeTypes: ['qr'],
         }}
       />
-      
+
       <View style={styles.overlay}>
-        <View style={styles.header}>
-          <Image 
+        <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
+          <Image
             source={{ uri: 'https://res.cloudinary.com/dtxdv136u/image/upload/v1763499836/logo_alb_ged07k.png' }}
             style={styles.headerLogo}
             resizeMode="contain"
           />
           <Text style={styles.overlayText}>
-            {user ? "Escanear QR para iniciar videollamada" : "Escanea el código QR del host"}
+            {user ? 'Escaneá el QR del host para vincular tu cuenta' : 'Escaneá el código QR para continuar'}
           </Text>
         </View>
         <View style={styles.scanFrame} />
-        <Text style={styles.instructions}>
-          Encuadra el código QR dentro del marco
-        </Text>
+        <Text style={styles.instructions}>Encuadrá el código QR dentro del marco</Text>
       </View>
     </View>
   );
@@ -289,8 +230,8 @@ export default function ScanQR() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     padding: 20,
     backgroundColor: '#FAFFFF',
   },
@@ -329,7 +270,7 @@ const styles = StyleSheet.create({
   },
   header: {
     position: 'absolute',
-    top: 60,
+    top: 0,
     alignItems: 'center',
     width: '100%',
   },
@@ -359,8 +300,8 @@ const styles = StyleSheet.create({
   },
   resultContainer: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     padding: 20,
     backgroundColor: '#FAFFFF',
   },
@@ -390,9 +331,9 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    textAlign: "center",
-    color: "#3D3D3D",
-    fontFamily: "BaiJamjuree-Bold",
+    textAlign: 'center',
+    color: '#3D3D3D',
+    fontFamily: 'BaiJamjuree-Bold',
   },
   codeContainer: {
     backgroundColor: 'white',
@@ -414,43 +355,43 @@ const styles = StyleSheet.create({
     gap: 15,
   },
   button: {
-    backgroundColor: "#7D1522",
+    backgroundColor: '#7D1522',
     padding: 18,
     borderRadius: 10,
-    alignItems: "center",
+    alignItems: 'center',
     minHeight: 60,
     justifyContent: 'center',
   },
   buttonText: {
-    color: "#FAFFFF",
+    color: '#FAFFFF',
     fontSize: 16,
-    fontFamily: "BaiJamjuree-Bold",
+    fontFamily: 'BaiJamjuree-Bold',
   },
   secondaryButton: {
-    backgroundColor: "#3D3D3D",
+    backgroundColor: '#3D3D3D',
     padding: 18,
     borderRadius: 10,
-    alignItems: "center",
+    alignItems: 'center',
     minHeight: 60,
     justifyContent: 'center',
   },
   secondaryButtonText: {
-    color: "#FAFFFF",
+    color: '#FAFFFF',
     fontSize: 16,
-    fontFamily: "BaiJamjuree-Bold",
+    fontFamily: 'BaiJamjuree-Bold',
   },
   outlineButton: {
     padding: 16,
     borderRadius: 10,
-    alignItems: "center",
+    alignItems: 'center',
     borderWidth: 1,
-    borderColor: "#3D3D3D",
+    borderColor: '#3D3D3D',
     minHeight: 50,
     justifyContent: 'center',
   },
   outlineButtonText: {
-    color: "#3D3D3D",
+    color: '#3D3D3D',
     fontSize: 16,
-    fontFamily: "BaiJamjuree",
+    fontFamily: 'BaiJamjuree',
   },
 });

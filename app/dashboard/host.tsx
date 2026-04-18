@@ -266,7 +266,7 @@ export default function HostDashboard() {
         text: "Sí",
         onPress: () => {
           logout();
-          router.replace("/(tabs)/auth/login");
+          router.replace("/auth/login");
         },
       },
     ]);
@@ -690,6 +690,12 @@ export default function HostDashboard() {
         )}
 
         <View style={styles.actions}>
+          <TouchableOpacity style={styles.secondaryButton} onPress={() => router.push("/contacts")}>
+            <Text style={styles.secondaryButtonText}>Contactos</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.secondaryButton} onPress={() => router.push("/messages")}>
+            <Text style={styles.secondaryButtonText}>Mensajes</Text>
+          </TouchableOpacity>
           <TouchableOpacity style={styles.button} onPress={() => router.push("/qr/scan")}>
             <Text style={styles.buttonText}>Escanear QR</Text>
           </TouchableOpacity>
