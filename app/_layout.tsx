@@ -11,6 +11,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from "../context/AuthContext";
 import { AuthContext } from "../context/AuthContext";
 import { VideoCallProvider } from "../context/VideoCallContext";
+import CallSignalListener from "../components/CallSignalListener";
 
 function AppNavigator() {
   const { user, loading } = useContext(AuthContext);
@@ -34,14 +35,15 @@ function AppNavigator() {
   }
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="index" options={{ headerShown: false }} />
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="dashboard" options={{ headerShown: false }} />
-      <Stack.Screen name="qr" options={{ headerShown: false }} />
-      <Stack.Screen name="video-call" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
-      <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
-    </Stack>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="calls" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
+        <Stack.Screen name="dashboard" options={{ headerShown: false }} />
+        <Stack.Screen name="qr" options={{ headerShown: false }} />
+        <Stack.Screen name="video-call" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
+        <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+      </Stack>
   );
 }
 
@@ -64,6 +66,7 @@ export default function RootLayout() {
       <StatusBar style="dark" backgroundColor="#FAFFFF" translucent={false} />
       <AuthProvider>
         <VideoCallProvider>
+          <CallSignalListener />
           <AppNavigator />
         </VideoCallProvider>
       </AuthProvider>

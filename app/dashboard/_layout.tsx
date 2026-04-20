@@ -9,11 +9,11 @@ export default function DashboardLayout() {
     >
       <Stack.Screen 
         name="admin" 
-        options={{ title: "Admin Dashboard" }}
+        options={{ title: "Panel de administración" }}
       />
       <Stack.Screen 
         name="host" 
-        options={{ title: "Host Dashboard" }}
+        options={{ title: "Panel principal" }}
       />
     </Stack>
   );

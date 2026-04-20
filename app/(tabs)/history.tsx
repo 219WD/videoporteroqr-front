@@ -7,18 +7,29 @@ import { AuthContext } from '../../context/AuthContext';
 import { api } from '../../utils/api';
 
 type CallItem = {
-  _id: string;
-  guestName: string;
-  guestEmail?: string | null;
-  status: 'pending' | 'answered' | 'timeout' | 'rejected';
-  response?: 'accept' | 'reject' | 'timeout' | null;
+  id: string;
+  callId: string;
+  direction: 'incoming' | 'outgoing';
+  status: 'ringing' | 'accepted' | 'rejected' | 'ended' | 'missed' | 'timeout' | 'cancelled';
+  displayStatus: string;
+  answered: boolean;
+  durationSeconds: number;
+  durationLabel: string;
   createdAt: string;
   answeredAt?: string | null;
-  hostId?: {
-    _id?: string;
-    name?: string;
-    email?: string;
-  } | string | null;
+  endedAt?: string | null;
+  caller: {
+    id: string | null;
+    name: string;
+    email?: string | null;
+  };
+  callee: {
+    id: string | null;
+    name: string;
+    email?: string | null;
+  };
+  endedByName?: string | null;
+  reason?: string | null;
 };
 
 export default function HistoryScreen() {
@@ -32,11 +43,8 @@ export default function HistoryScreen() {
     try {
       setLoading(true);
       const params: Record<string, string> = { limit: '30', page: '1' };
-      if (user?.role === 'admin') {
-        params.hostId = '';
-      }
 
-      const response = await api.get('/notifications/call-history', { params });
+      const response = await api.get('/calls/history', { params });
       setCalls(response.data.calls || []);
     } catch (error: any) {
       console.error('Error loading call history:', error);
@@ -46,7 +54,7 @@ export default function HistoryScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [user?.role]);
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -67,22 +75,28 @@ export default function HistoryScreen() {
       minute: '2-digit',
     });
 
-  const getStatusLabel = (status: CallItem['status']) => {
+  const getStatusLabel = (status: CallItem['status'], displayStatus: string) => {
+    if (displayStatus) return displayStatus;
+
     switch (status) {
-      case 'answered':
+      case 'accepted':
+      case 'ended':
         return 'Respondida';
       case 'timeout':
-        return 'Timeout';
+        return 'Perdida';
       case 'rejected':
         return 'Rechazada';
+      case 'cancelled':
+        return 'Cancelada';
       default:
-        return 'Pendiente';
+        return 'En curso';
     }
   };
 
   const renderItem = ({ item }: { item: CallItem }) => {
-    const hostName =
-      typeof item.hostId === 'object' && item.hostId ? item.hostId.name || 'Host' : 'Host';
+    const contactName = item.direction === 'outgoing' ? item.callee.name : item.caller.name;
+    const contactEmail = item.direction === 'outgoing' ? item.callee.email : item.caller.email;
+    const directionLabel = item.direction === 'outgoing' ? 'Llamada saliente' : 'Llamada entrante';
 
     return (
       <View style={styles.card}>
@@ -91,15 +105,31 @@ export default function HistoryScreen() {
             <Ionicons name="call" size={18} color="#7D1522" />
           </View>
           <View style={styles.meta}>
-            <Text style={styles.name}>{item.guestName}</Text>
-            <Text style={styles.email}>{item.guestEmail || 'Sin email'}</Text>
+            <Text style={styles.name}>{contactName}</Text>
+            <Text style={styles.email}>{contactEmail || 'Sin correo'}</Text>
           </View>
-          <View style={[styles.statusChip, item.status === 'answered' ? styles.statusAnswered : null]}>
-            <Text style={styles.statusText}>{getStatusLabel(item.status)}</Text>
+          <View
+            style={[
+              styles.statusChip,
+              item.displayStatus === 'Respondida' ? styles.statusAnswered : null,
+              item.displayStatus === 'Perdida' ? styles.statusMissed : null,
+              item.displayStatus === 'Rechazada' ? styles.statusRejected : null,
+            ]}
+          >
+            <Text style={styles.statusText}>{getStatusLabel(item.status, item.displayStatus)}</Text>
           </View>
         </View>
-        <Text style={styles.detail}>Host: {hostName}</Text>
+        <Text style={styles.detail}>{directionLabel}</Text>
         <Text style={styles.detail}>Fecha: {formatDate(item.createdAt)}</Text>
+        <Text style={styles.detail}>
+          Duración: {item.answered ? item.durationLabel : '00:00'}
+        </Text>
+        {item.answeredAt ? (
+          <Text style={styles.detail}>Respondida: {formatDate(item.answeredAt)}</Text>
+        ) : null}
+        {item.endedByName ? (
+          <Text style={styles.detail}>Finalizada por: {item.endedByName}</Text>
+        ) : null}
       </View>
     );
   };
@@ -108,7 +138,7 @@ export default function HistoryScreen() {
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
         <Text style={styles.title}>Historial</Text>
-        <Text style={styles.subtitle}>Log de llamadas recientes</Text>
+        <Text style={styles.subtitle}>Registro de llamadas recientes</Text>
       </View>
 
       {loading ? (
@@ -125,7 +155,7 @@ export default function HistoryScreen() {
       ) : (
         <FlatList
           data={calls}
-          keyExtractor={(item) => item._id}
+          keyExtractor={(item) => item.id}
           renderItem={renderItem}
           contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 20 }]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#7D1522']} />}
@@ -206,6 +236,12 @@ const styles = StyleSheet.create({
   },
   statusAnswered: {
     backgroundColor: '#E7F6EA',
+  },
+  statusMissed: {
+    backgroundColor: '#FDECEC',
+  },
+  statusRejected: {
+    backgroundColor: '#FCEFD9',
   },
   statusText: {
     fontSize: 11,

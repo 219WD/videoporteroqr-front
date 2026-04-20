@@ -203,7 +203,7 @@ const handleSubmit = async () => {
             {actionType === 'call' ? '📞 Videollamada entrante' : '📝 Mensaje nuevo'}
           </Text>
           <Text style={styles.subtitle}>
-            De: {guestName || 'Visitante'}
+            De: {guestName || 'Invitado'}
           </Text>
         </View>
 

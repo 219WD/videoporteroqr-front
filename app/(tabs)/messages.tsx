@@ -214,7 +214,7 @@ export default function MessagesScreen() {
       ) : conversations.length === 0 ? (
         <View style={styles.center}>
           <Ionicons name="chatbubbles-outline" size={60} color="#ccc" />
-          <Text style={styles.emptyTitle}>No hay chats todavía</Text>
+          <Text style={styles.emptyTitle}>Todavía no hay chats</Text>
           <Text style={styles.emptyText}>
             Cuando envíes un mensaje desde Contactos, aparecerá aquí el historial.
           </Text>

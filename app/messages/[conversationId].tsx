@@ -220,6 +220,36 @@ export default function ConversationScreen() {
     router.replace('/messages');
   };
 
+  const startCall = async () => {
+    const contactId = conversation?.contact?.id;
+    if (!contactId) {
+      Alert.alert('Llamada', 'No se pudo identificar el contacto de este chat');
+      return;
+    }
+
+    try {
+      const response = await api.post('/calls/sessions', {
+        contactUserId: contactId,
+      });
+
+      const callId = response.data?.call?.callId;
+      if (!callId) {
+        throw new Error('No se pudo iniciar la llamada');
+      }
+
+      router.push({
+        pathname: '/calls/[callId]',
+        params: {
+          callId,
+          role: 'caller',
+        },
+      });
+    } catch (error: any) {
+      console.error('Error starting call from chat:', error);
+      Alert.alert('Error', error.response?.data?.error || 'No se pudo iniciar la llamada');
+    }
+  };
+
   const sendMessage = async () => {
     const text = message.trim();
     if (!text || !conversationId) return;
@@ -293,20 +323,29 @@ export default function ConversationScreen() {
           <Ionicons name="chevron-back" size={26} color="#3D3D3D" />
         </TouchableOpacity>
         <View style={styles.headerText}>
-          <Text style={styles.headerTitle}>{conversation?.contact?.name || 'Chat'}</Text>
+          <Text style={styles.headerTitle}>{conversation?.contact?.name || 'Conversación'}</Text>
           <Text style={styles.headerSubtitle}>{conversation?.contact?.email || ''}</Text>
         </View>
-        {conversation?.unreadCount ? (
-          <View style={styles.headerBadge}>
-            <Text style={styles.headerBadgeText}>{conversation.unreadCount}</Text>
-          </View>
-        ) : null}
+        <View style={styles.headerActions}>
+          {conversation?.unreadCount ? (
+            <View style={styles.headerBadge}>
+              <Text style={styles.headerBadgeText}>{conversation.unreadCount}</Text>
+            </View>
+          ) : null}
+          <TouchableOpacity
+            style={styles.callHeaderButton}
+            onPress={startCall}
+            disabled={!conversation?.contact?.id}
+          >
+            <Ionicons name="call" size={18} color="#7D1522" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color="#7D1522" />
-          <Text style={styles.loadingText}>Cargando chat...</Text>
+          <Text style={styles.loadingText}>Cargando conversación...</Text>
         </View>
       ) : (
         <>
@@ -322,7 +361,7 @@ export default function ConversationScreen() {
                 <Ionicons name="chatbubble-outline" size={48} color="#ccc" />
                 <Text style={styles.emptyChatTitle}>Todavía no hay mensajes</Text>
                 <Text style={styles.emptyChatText}>
-                  Escribí el primer mensaje para iniciar esta conversación.
+                  Escribe el primer mensaje para iniciar esta conversación.
                 </Text>
               </View>
             }
@@ -341,7 +380,7 @@ export default function ConversationScreen() {
           <View style={styles.composer}>
             <TextInput
               style={styles.input}
-              placeholder="Escribí un mensaje..."
+              placeholder="Escribe un mensaje..."
               placeholderTextColor="#999"
               value={message}
               onChangeText={setMessage}
@@ -392,6 +431,11 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 12,
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
   headerTitle: {
     fontSize: 18,
     color: '#3D3D3D',
@@ -416,6 +460,16 @@ const styles = StyleSheet.create({
     color: '#FAFFFF',
     fontFamily: 'BaiJamjuree-Bold',
     fontSize: 12,
+  },
+  callHeaderButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F8EDEF',
+    borderWidth: 1,
+    borderColor: '#E6D7DA',
   },
   list: {
     padding: 16,

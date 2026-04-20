@@ -35,17 +35,17 @@ export default function HostVideoCallScreen() {
         userId: user?.id,
         userRole: 'host'
       });
-      setStatus('Esperando al visitante...');
+      setStatus('Esperando al invitado...');
     });
 
     newSocket.on('user-joined', (data) => {
       if (data.userRole === 'guest') {
-        setStatus('Visitante conectado. Iniciando videollamada...');
+        setStatus('Invitado conectado. Iniciando videollamada...');
       }
     });
 
     newSocket.on('call-offer', (data) => {
-      console.log('Recibiendo oferta del guest');
+      console.log('Recibiendo oferta del invitado');
       if (pc) {
         pc.setRemoteDescription(new RTCSessionDescription(data.offer))
           .then(() => pc.createAnswer())
@@ -66,7 +66,7 @@ export default function HostVideoCallScreen() {
     });
 
     newSocket.on('call-ended', () => {
-      Alert.alert('Llamada finalizada', 'El visitante ha colgado.');
+      Alert.alert('Llamada finalizada', 'La otra persona colgó.');
       endCall();
     });
 
@@ -95,7 +95,7 @@ export default function HostVideoCallScreen() {
       };
     } catch (err) {
       console.error('Error al iniciar stream:', err);
-      setStatus('Error en cámara/mic');
+      setStatus('Error en cámara/micrófono');
     }
   };
 
@@ -139,7 +139,7 @@ export default function HostVideoCallScreen() {
           <Text>{cameraEnabled ? '📹' : '📷'}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.endBtn} onPress={endCall}>
-          <Text>📞 Colgar</Text>
+          <Text>Colgar</Text>
         </TouchableOpacity>
       </View>
     </View>

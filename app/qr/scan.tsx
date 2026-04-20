@@ -66,8 +66,8 @@ export default function ScanQR() {
 
       if (hostId && user?.id && String(hostId) === String(user.id)) {
         Alert.alert(
-          'QR inválido',
-          'Ese QR es el de tu propia cuenta. Escaneá el QR del otro usuario para vincularte.',
+          'QR no válido',
+          'Ese QR es el de tu propia cuenta. Escaneá el QR de la otra persona para vincularte.',
         );
         setScanning(true);
         setProcessing(false);
@@ -217,7 +217,7 @@ export default function ScanQR() {
             resizeMode="contain"
           />
           <Text style={styles.overlayText}>
-            {user ? 'Escaneá el QR del host para vincular tu cuenta' : 'Escaneá el código QR para continuar'}
+            {user ? 'Escaneá el QR del anfitrión para vincular tu cuenta' : 'Escaneá el código QR para continuar'}
           </Text>
         </View>
         <View style={styles.scanFrame} />

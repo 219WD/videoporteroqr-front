@@ -32,6 +32,7 @@ export default function ContactsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [openingChatId, setOpeningChatId] = useState<string | null>(null);
+  const [openingCallId, setOpeningCallId] = useState<string | null>(null);
 
   const loadContacts = useCallback(async () => {
     try {
@@ -90,17 +91,44 @@ export default function ContactsScreen() {
     Alert.alert('Llamadas', 'La videollamada estará disponible más adelante.');
   };
 
+  const startCall = async (contact: ContactItem) => {
+    try {
+      setOpeningCallId(contact.id);
+      const response = await api.post('/calls/sessions', {
+        contactUserId: contact.id,
+      });
+
+      const callId = response.data?.call?.callId;
+      if (!callId) {
+        throw new Error('No se pudo iniciar la llamada');
+      }
+
+      router.push({
+        pathname: '/calls/[callId]',
+        params: {
+          callId,
+          role: 'caller',
+        },
+      });
+    } catch (error: any) {
+      const message = error.response?.data?.error || 'No se pudo iniciar la llamada';
+      Alert.alert('Error', message);
+    } finally {
+      setOpeningCallId(null);
+    }
+  };
+
   const handleManualRefresh = () => {
     if (refreshing || loading) return;
     onRefresh();
   };
 
-  const getRoleBadgeLabel = (role: 'host' | 'guest') => (role === 'host' ? 'Host' : 'Guest');
+  const getRoleBadgeLabel = (role: 'host' | 'guest') => (role === 'host' ? 'Anfitrión' : 'Invitado');
 
   const getRoleSummaryLabel = (roles: Array<'host' | 'guest'>) => {
-    if (roles.length > 1) return 'Host y Guest';
-    if (roles[0] === 'host') return 'Host';
-    if (roles[0] === 'guest') return 'Guest';
+    if (roles.length > 1) return 'Anfitrión e invitado';
+    if (roles[0] === 'host') return 'Anfitrión';
+    if (roles[0] === 'guest') return 'Invitado';
     return 'Contacto';
   };
 
@@ -142,8 +170,16 @@ export default function ContactsScreen() {
         </View>
 
         <View style={styles.actionsRow}>
-          <TouchableOpacity style={styles.callButton} onPress={handleCall}>
-            <Ionicons name="call-outline" size={18} color="#666" />
+          <TouchableOpacity
+            style={[styles.callButton, openingCallId === item.id && styles.callButtonDisabled]}
+            onPress={() => startCall(item)}
+            disabled={openingCallId === item.id}
+          >
+            {openingCallId === item.id ? (
+              <ActivityIndicator size="small" color="#666" />
+            ) : (
+              <Ionicons name="call-outline" size={18} color="#666" />
+            )}
             <Text style={styles.callButtonText}>Llamar</Text>
           </TouchableOpacity>
 
@@ -198,9 +234,9 @@ export default function ContactsScreen() {
       ) : contacts.length === 0 ? (
         <View style={styles.center}>
           <Ionicons name="people-outline" size={60} color="#ccc" />
-          <Text style={styles.emptyTitle}>No hay contactos aún</Text>
+          <Text style={styles.emptyTitle}>Todavía no hay contactos</Text>
           <Text style={styles.emptyText}>
-            Cuando un host te vincule por QR vas a ver sus datos aquí.
+            Cuando un anfitrión te vincule por QR vas a ver sus datos aquí.
           </Text>
         </View>
       ) : (
@@ -358,6 +394,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 10,
     backgroundColor: '#F3F3F3',
+  },
+  callButtonDisabled: {
+    opacity: 0.75,
   },
   callButtonText: {
     color: '#666',

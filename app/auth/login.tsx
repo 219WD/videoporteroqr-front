@@ -49,7 +49,7 @@ export default function LoginScreen() {
 
         <TouchableOpacity style={styles.primaryButton} onPress={handleLogin} disabled={loading}>
           {loading ? <ActivityIndicator color="#FAFFFF" /> : <Ionicons name="log-in-outline" size={18} color="#FAFFFF" />}
-          <Text style={styles.primaryButtonText}>Entrar</Text>
+          <Text style={styles.primaryButtonText}>Ingresar</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.secondaryButton} onPress={() => router.push('/auth/register')}>

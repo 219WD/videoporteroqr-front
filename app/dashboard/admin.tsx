@@ -133,7 +133,7 @@ export default function AdminDashboard() {
           style={styles.logo}
           resizeMode="contain"
         />
-        <Text style={styles.headerTitle}>Panel de Administración</Text>
+        <Text style={styles.headerTitle}>Panel de administración</Text>
       </View>
 
       {/* Tabs */}
@@ -151,7 +151,7 @@ export default function AdminDashboard() {
           onPress={() => setActiveTab('hosts')}
         >
           <Text style={[styles.tabText, activeTab === 'hosts' && styles.activeTabText]}>
-            Hosts ({hosts.length})
+            Anfitriones ({hosts.length})
           </Text>
         </TouchableOpacity>
         <TouchableOpacity 
@@ -159,7 +159,7 @@ export default function AdminDashboard() {
           onPress={() => setActiveTab('guests')}
         >
           <Text style={[styles.tabText, activeTab === 'guests' && styles.activeTabText]}>
-            Usuarios ({guests.length})
+            Usuarios vinculados ({guests.length})
           </Text>
         </TouchableOpacity>
       </View>
@@ -167,16 +167,16 @@ export default function AdminDashboard() {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {activeTab === 'stats' && stats && (
           <View style={styles.statsSection}>
-            <Text style={styles.title}>Estadísticas del Sistema</Text>
+            <Text style={styles.title}>Estadísticas del sistema</Text>
             
             <View style={styles.statsGrid}>
               <View style={styles.statCard}>
                 <Text style={styles.statNumber}>{stats.totals.hosts}</Text>
-                <Text style={styles.statLabel}>Hosts</Text>
+                <Text style={styles.statLabel}>Anfitriones</Text>
               </View>
               <View style={styles.statCard}>
                 <Text style={styles.statNumber}>{stats.totals.guests}</Text>
-                <Text style={styles.statLabel}>Guests</Text>
+                <Text style={styles.statLabel}>Invitados</Text>
               </View>
               <View style={styles.statCard}>
                 <Text style={styles.statNumber}>{stats.totals.calls}</Text>
@@ -184,11 +184,11 @@ export default function AdminDashboard() {
               </View>
               <View style={styles.statCard}>
                 <Text style={styles.statNumber}>{stats.totals.answerRate}%</Text>
-                <Text style={styles.statLabel}>Tasa Respuesta</Text>
+                <Text style={styles.statLabel}>Tasa de respuesta</Text>
               </View>
             </View>
 
-            <Text style={styles.sectionTitle}>Hosts Más Activos</Text>
+            <Text style={styles.sectionTitle}>Anfitriones más activos</Text>
             {stats.activeHosts.map((item, index) => (
               <View key={item.host.id} style={styles.activeHost}>
                 <View style={styles.hostRank}>
@@ -207,13 +207,13 @@ export default function AdminDashboard() {
         {activeTab === 'hosts' && (
           <View style={styles.listSection}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Hosts Registrados ({hosts.length})</Text>
+              <Text style={styles.sectionTitle}>Anfitriones registrados ({hosts.length})</Text>
               <TouchableOpacity style={styles.secondaryButton} onPress={refreshData}>
                 <Text style={styles.secondaryButtonText}>Actualizar</Text>
               </TouchableOpacity>
             </View>
             {hosts.length === 0 ? (
-              <Text style={styles.emptyText}>No hay hosts registrados</Text>
+              <Text style={styles.emptyText}>No hay anfitriones registrados</Text>
             ) : (
               <FlatList
                 data={hosts}
@@ -239,13 +239,13 @@ export default function AdminDashboard() {
         {activeTab === 'guests' && (
           <View style={styles.listSection}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Usuarios Registrados ({guests.length})</Text>
+              <Text style={styles.sectionTitle}>Usuarios vinculados ({guests.length})</Text>
               <TouchableOpacity style={styles.secondaryButton} onPress={refreshData}>
                 <Text style={styles.secondaryButtonText}>Actualizar</Text>
               </TouchableOpacity>
             </View>
             {guests.length === 0 ? (
-              <Text style={styles.emptyText}>No hay usuarios registrados</Text>
+              <Text style={styles.emptyText}>No hay usuarios vinculados</Text>
             ) : (
               <FlatList
                 data={guests}

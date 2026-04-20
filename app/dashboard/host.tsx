@@ -471,7 +471,7 @@ export default function HostDashboard() {
           styles.messageSender,
           item.sender === 'host' ? styles.hostSender : styles.guestSender
         ]}>
-          {item.sender === 'host' ? 'Tú' : selectedFlow?.guestName || 'Visitante'}
+          {item.sender === 'host' ? 'Tú' : selectedFlow?.guestName || 'Invitado'}
         </Text>
         <Text style={styles.messageTime}>
           {new Date(item.timestamp).toLocaleTimeString('es-ES', {
@@ -571,7 +571,7 @@ export default function HostDashboard() {
         {activeTab === 'info' && (
           <>
             <View style={styles.infoSection}>
-              <Text style={styles.sectionTitle}>Tu Información</Text>
+              <Text style={styles.sectionTitle}>Tu información</Text>
               <Text style={styles.infoText}>Nombre: {user?.name}</Text>
               <Text style={styles.infoText}>Email: {user?.email}</Text>
               <Text style={styles.infoText}>Código QR: {hostData?.qrCode || user?.qrCode || "No disponible"}</Text>
@@ -592,7 +592,7 @@ export default function HostDashboard() {
             ) : (
               <View style={styles.noQrSection}>
                 <Text style={styles.noQrText}>
-                  No tienes un código QR generado
+                  Todavía no tienes un código QR generado
                 </Text>
                 <TouchableOpacity style={styles.button} onPress={generateQRCode}>
                   <Text style={styles.buttonText}>Actualizar QR</Text>
@@ -658,7 +658,7 @@ export default function HostDashboard() {
           <View style={styles.messagesSection}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>
-                Mensajes de Visitantes ({flows.length})
+                Mensajes de contactos ({flows.length})
               </Text>
               <TouchableOpacity style={styles.secondaryButton} onPress={refreshData}>
                 <Text style={styles.secondaryButtonText}>Actualizar</Text>
@@ -675,7 +675,7 @@ export default function HostDashboard() {
                 <Ionicons name="chatbubble-outline" size={64} color="#ccc" />
                 <Text style={styles.emptyTitle}>No hay mensajes aún</Text>
                 <Text style={styles.emptyText}>
-                  Los visitantes aparecerán aquí cuando envíen mensajes o realicen videollamadas
+                  Tus contactos aparecerán aquí cuando envíen mensajes o realicen videollamadas
                 </Text>
               </View>
             ) : (

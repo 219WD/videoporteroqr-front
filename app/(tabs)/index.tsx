@@ -35,7 +35,7 @@ export default function HomeScreen() {
         <Text style={styles.kicker}>Inicio</Text>
         <Text style={styles.title}>Panel principal</Text>
         <Text style={styles.subtitle}>
-          {user?.name ? `Hola ${user.name}, desde acá gestionás tu cuenta y tus contactos.` : 'Gestioná tu cuenta desde un solo lugar.'}
+          {user?.name ? `Hola ${user.name}, desde aquí gestionás tu cuenta y tus contactos.` : 'Gestioná tu cuenta desde un solo lugar.'}
         </Text>
       </View>
 
@@ -58,7 +58,7 @@ export default function HomeScreen() {
           </View>
           <View style={styles.summaryItem}>
             <Text style={styles.summaryLabel}>Rol</Text>
-            <Text style={styles.summaryValue}>{user?.role === 'admin' ? 'Admin' : 'Host'}</Text>
+            <Text style={styles.summaryValue}>{user?.role === 'admin' ? 'Administrador' : 'Anfitrión'}</Text>
           </View>
         </View>
       </View>

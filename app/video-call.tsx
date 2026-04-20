@@ -16,7 +16,7 @@ export default function VideoCallScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>🎥 Videollamada Activa</Text>
+      <Text style={styles.title}>Videollamada activa</Text>
       
       <View style={styles.callInfo}>
         <Text style={styles.callId}>ID: {callId}</Text>
@@ -31,7 +31,7 @@ export default function VideoCallScreen() {
           onPress={toggleCamera}
         >
           <Text style={styles.controlText}>
-            {isCameraEnabled ? "📷 Cámara ON" : "📷 Cámara OFF"}
+            {isCameraEnabled ? "Cámara activada" : "Cámara desactivada"}
           </Text>
         </TouchableOpacity>
 
@@ -40,7 +40,7 @@ export default function VideoCallScreen() {
           onPress={toggleAudio}
         >
           <Text style={styles.controlText}>
-            {isAudioEnabled ? "🎤 Audio ON" : "🎤 Audio OFF"}
+            {isAudioEnabled ? "Audio activado" : "Audio desactivado"}
           </Text>
         </TouchableOpacity>
 
@@ -51,7 +51,7 @@ export default function VideoCallScreen() {
             router.back();
           }}
         >
-          <Text style={styles.endCallText}>📞 Finalizar Llamada</Text>
+          <Text style={styles.endCallText}>Finalizar llamada</Text>
         </TouchableOpacity>
       </View>
     </View>
