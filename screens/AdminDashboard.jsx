@@ -18,7 +18,7 @@ export default function AdminDashboard({ navigation }) {
 
   return (
     <View style={{ padding: 20 }}>
-      <Text>Admin Dashboard - Hosts</Text>
+      <Text>Panel de administración - Anfitriones</Text>
       <FlatList
         data={hosts}
         keyExtractor={(item) => item._id || item.email}

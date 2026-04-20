@@ -53,7 +53,7 @@ const HostVideoCallSimple = ({ onEndCall }: HostVideoCallSimpleProps) => {
       <View style={styles.container}>
         <Text style={styles.title}>No hay llamada activa</Text>
         <TouchableOpacity style={styles.button} onPress={handleEndCall}>
-          <Text style={styles.buttonText}>Volver al Dashboard</Text>
+        <Text style={styles.buttonText}>Volver al panel</Text>
         </TouchableOpacity>
       </View>
     );
@@ -62,35 +62,35 @@ const HostVideoCallSimple = ({ onEndCall }: HostVideoCallSimpleProps) => {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>
-        {isConnected ? '🔊 Llamada Activa' : '🔔 Conectando...'}
+        {isConnected ? 'Llamada activa' : 'Conectando...'}
       </Text>
       
       <View style={styles.callContainer}>
         <Text style={styles.emoji}>🎤</Text>
         <Text style={styles.guestName}>
-          {currentCall?.guestName || 'Invitado en la Puerta'}
+          {currentCall?.guestName || 'Invitado'}
         </Text>
         <Text style={styles.status}>
-          {isConnected ? 'CONECTADO ✅' : 'Estableciendo conexión...'}
+          {isConnected ? 'Conectado' : 'Estableciendo conexión...'}
         </Text>
         
         {isConnected && (
           <View style={styles.connectionInfo}>
-            <Text style={styles.infoText}>Modo: Comunicación de audio</Text>
-            <Text style={styles.infoText}>El guest puede verte a través de su cámara</Text>
+            <Text style={styles.infoText}>Modo: comunicación de audio</Text>
+            <Text style={styles.infoText}>La otra persona puede verte a través de su cámara</Text>
           </View>
         )}
       </View>
 
       <View style={styles.controls}>
         <TouchableOpacity style={[styles.controlButton, styles.endCallButton]} onPress={handleEndCall}>
-          <Text style={styles.controlText}>📞 Finalizar Llamada</Text>
+      <Text style={styles.controlText}>Finalizar llamada</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.debug}>
         <Text style={styles.debugText}>ID: {callId}</Text>
-        <Text style={styles.debugText}>DEBUG: Versión sin cámara</Text>
+        <Text style={styles.debugText}>Versión sin cámara</Text>
       </View>
     </View>
   );

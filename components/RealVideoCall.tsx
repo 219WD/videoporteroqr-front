@@ -5,7 +5,7 @@ import { useVideoCall } from '../context/VideoCallContext';
 
 export default function RealVideoCall() {
   const { callId, guestData, leaveCall, currentCall } = useVideoCall();
-  const [callStatus, setCallStatus] = useState('connecting');
+  const [callStatus, setCallStatus] = useState('conectando');
 
   useEffect(() => {
     // Iniciar llamada real aquí
@@ -20,11 +20,11 @@ export default function RealVideoCall() {
       // Por ahora simulamos una llamada funcional
       
       setTimeout(() => {
-        setCallStatus('connected');
+        setCallStatus('conectado');
         Alert.alert(
-          "Llamada Conectada", 
+          'Llamada conectada',
           `Estás hablando con ${guestData?.name || 'Invitado'}`,
-          [{ text: "OK" }]
+          [{ text: 'Aceptar' }]
         );
       }, 2000);
       
@@ -44,7 +44,7 @@ export default function RealVideoCall() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>🎥 Videollamada en Curso</Text>
+      <Text style={styles.title}>Videollamada en curso</Text>
       
       <View style={styles.videoContainer}>
         <View style={styles.remoteVideo}>
@@ -52,7 +52,7 @@ export default function RealVideoCall() {
             {guestData?.name || 'Invitado'}
           </Text>
           <Text style={styles.status}>
-            {callStatus === 'connected' ? '✅ Conectado' : '🔄 Conectando...'}
+            {callStatus === 'conectado' ? 'Conectado' : 'Conectando...'}
           </Text>
         </View>
         
@@ -79,10 +79,10 @@ export default function RealVideoCall() {
       </View>
 
       <View style={styles.info}>
-        <Text style={styles.infoText}>ID: {callId}</Text>
+        <Text style={styles.infoText}>ID de llamada: {callId}</Text>
         <Text style={styles.infoText}>Conectado con: {guestData?.name}</Text>
         <Text style={styles.infoNote}>
-          Versión demo - Audio/Video real requiere WebRTC nativo
+          Versión de prueba: el audio y el video reales requieren WebRTC nativo
         </Text>
       </View>
     </View>

@@ -196,7 +196,7 @@ const HostVideoCall = ({ callId, guestId, onEndCall, user }) => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Videollamada con Guest</Text>
+      <Text style={styles.title}>Videollamada con invitado</Text>
       
       <View style={styles.videoContainer}>
         {/* Video remoto (guest) - SIEMPRE visible */}
@@ -207,12 +207,12 @@ const HostVideoCall = ({ callId, guestId, onEndCall, user }) => {
               style={styles.video}
               objectFit="cover"
             />
-            <Text style={styles.videoLabel}>Guest</Text>
+            <Text style={styles.videoLabel}>Invitado</Text>
           </View>
         ) : (
           <View style={styles.connecting}>
             <Text style={styles.connectingText}>
-              {callStatus === 'waiting-guest' ? 'Esperando guest...' : 'Conectando...'}
+              {callStatus === 'waiting-guest' ? 'Esperando invitado...' : 'Conectando...'}
             </Text>
           </View>
         )}
@@ -239,13 +239,13 @@ const HostVideoCall = ({ callId, guestId, onEndCall, user }) => {
             {isCameraEnabled ? '📷' : '📵'}
           </Text>
           <Text style={styles.controlLabel}>
-            {isCameraEnabled ? 'Cámara ON' : 'Cámara OFF'}
+            {isCameraEnabled ? 'Cámara activada' : 'Cámara desactivada'}
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.controlButton} onPress={toggleMicrophone}>
           <Text style={styles.controlText}>🎤</Text>
-          <Text style={styles.controlLabel}>Mic</Text>
+          <Text style={styles.controlLabel}>Micrófono</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={[styles.controlButton, styles.endCallButton]} onPress={endCall}>
@@ -259,7 +259,7 @@ const HostVideoCall = ({ callId, guestId, onEndCall, user }) => {
           Estado: {isConnected ? 'Conectado' : callStatus}
         </Text>
         <Text style={styles.statusText}>
-          Guest: {remoteStream ? 'Conectado' : 'Conectando...'}
+          Invitado: {remoteStream ? 'Conectado' : 'Conectando...'}
         </Text>
         <Text style={styles.statusText}>
           Tu cámara: {isCameraEnabled ? 'Activada' : 'Desactivada'}

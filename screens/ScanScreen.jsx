@@ -18,17 +18,17 @@ export default function ScanScreen({ navigation }) {
       const url = new URL(data);
       const code = url.searchParams.get('code');
       if (!code) {
-        alert('QR inválido');
+        alert('QR no válido');
         return;
       }
       navigation.navigate('RegisterGuest', { code });
     } catch (e) {
-      alert('QR inválido');
+      alert('QR no válido');
     }
   };
 
-  if (hasPermission === null) return <Text>Requesting camera permission</Text>;
-  if (hasPermission === false) return <Text>No access to camera</Text>;
+  if (hasPermission === null) return <Text>Solicitando permiso de cámara</Text>;
+  if (hasPermission === false) return <Text>Sin acceso a la cámara</Text>;
 
   return (
     <View style={{ flex: 1 }}>

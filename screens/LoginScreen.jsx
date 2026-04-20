@@ -18,7 +18,7 @@ export default function LoginScreen({ navigation }) {
       // navigate by role
       if (user.role === 'admin') navigation.replace('AdminDashboard');
       else if (user.role === 'host') navigation.replace('HostDashboard');
-      else navigation.replace('Scan'); // or GuestDashboard
+      else navigation.replace('Scan');
     } catch (e) {
       console.error(e);
       setErr('Credenciales inválidas');
@@ -29,10 +29,10 @@ export default function LoginScreen({ navigation }) {
     <View style={{ padding: 20 }}>
       {err ? <Text style={{ color:'red' }}>{err}</Text> : null}
       <TextInput placeholder="Email" value={email} onChangeText={setEmail} />
-      <TextInput placeholder="Password" value={password} secureTextEntry onChangeText={setPassword} />
-      <Button title="Login" onPress={login} />
-      <Button title="Crear Host" onPress={() => navigation.navigate('RegisterHost')} />
-      <Button title="Escanear QR (Guest)" onPress={() => navigation.navigate('Scan')} />
+      <TextInput placeholder="Contraseña" value={password} secureTextEntry onChangeText={setPassword} />
+      <Button title="Ingresar" onPress={login} />
+      <Button title="Crear cuenta" onPress={() => navigation.navigate('RegisterHost')} />
+      <Button title="Escanear QR" onPress={() => navigation.navigate('Scan')} />
     </View>
   );
 }
