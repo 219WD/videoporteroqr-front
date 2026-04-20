@@ -81,6 +81,16 @@ export default function TabsLayout() {
           ),
         }}
       />
+
+      <Tabs.Screen
+        name="qr"
+        options={{
+          title: 'QR',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'qr-code' : 'qr-code-outline'} size={24} color={color} />
+          ),
+        }}
+      />
     </Tabs>
   );
 }

@@ -36,7 +36,7 @@ export default function CallScreen() {
   const [localStream, setLocalStream] = useState<any>(null);
   const [remoteStream, setRemoteStream] = useState<any>(null);
   const [muted, setMuted] = useState(false);
-  const [videoEnabled, setVideoEnabled] = useState(true);
+  const [videoEnabled, setVideoEnabled] = useState(forcedRole !== 'callee');
   const [joining, setJoining] = useState(true);
   const [waitingAcceptance, setWaitingAcceptance] = useState(false);
   const [accepted, setAccepted] = useState(false);
@@ -297,11 +297,25 @@ export default function CallScreen() {
           leaveScreen();
         });
 
-        socket.on('call:ended', (payload) => {
+        const handleCallEnded = (payload) => {
           if (payload?.callId !== callId) return;
+          if (payload?.status === 'timeout') return;
+
           Alert.alert('Llamada finalizada', 'La llamada terminó');
           leaveScreen();
-        });
+        };
+
+        const handleCallTimeout = (payload) => {
+          if (payload?.callId !== callId) return;
+          const status = payload?.status;
+          const title = status === 'timeout' ? 'Llamada perdida' : 'Llamada finalizada';
+          const message = status === 'timeout' ? 'No fue contestada a tiempo' : 'La llamada terminó';
+          Alert.alert(title, message);
+          leaveScreen();
+        };
+
+        socket.on('call:ended', handleCallEnded);
+        socket.on('call:timeout', handleCallTimeout);
 
         socket.on('call:offer', async (payload) => {
           if (payload?.callId !== callId || isCaller) return;
@@ -358,6 +372,14 @@ export default function CallScreen() {
             localStreamRef.current = stream;
             setLocalStream(stream);
             attachLocalStreamToPeer(stream);
+
+            if (!isCaller) {
+              const videoTrack = stream.getVideoTracks()[0];
+              if (videoTrack) {
+                videoTrack.enabled = false;
+              }
+              setVideoEnabled(false);
+            }
 
             if (pendingOfferRef.current && !isCaller) {
               const offer = pendingOfferRef.current;

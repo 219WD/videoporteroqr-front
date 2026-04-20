@@ -12,13 +12,17 @@ import { hasSeenNotificationId, markNotificationSeen } from '../utils/notificati
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: false,
     shouldPlaySound: false,
     shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
   }),
 });
 
 const DEVICE_ID_KEY = 'push-device-id';
+const CALL_CATEGORY_ID = 'call_invite';
+const CALL_ACCEPT_ACTION = 'call_accept';
+const CALL_REJECT_ACTION = 'call_reject';
 
 async function getDeviceId() {
   const existing = await AsyncStorage.getItem(DEVICE_ID_KEY);
@@ -48,8 +52,12 @@ function extractNotificationData(item) {
   );
 }
 
+function getNotificationId(data) {
+  return data?.notificationId || null;
+}
+
 function navigateFromNotification(data) {
-  const notificationId = data?.notificationId;
+  const notificationId = getNotificationId(data);
 
   if (notificationId && hasSeenNotificationId(notificationId)) {
     return;
@@ -75,22 +83,97 @@ function navigateFromNotification(data) {
       pathname: '/calls/[callId]',
       params: {
         callId: data.callId,
-        role: 'callee',
+        role: data?.params?.role || 'callee',
       },
     });
   }
+}
+
+async function handleCallInviteAction(data, actionIdentifier) {
+  const callId = data?.callId;
+  const callKind = data?.callKind || 'session';
+
+  if (!callId) {
+    return;
+  }
+
+  const endpoints = {
+    session: {
+      accept: `/calls/sessions/${callId}/accept`,
+      reject: `/calls/sessions/${callId}/reject`,
+    },
+    video: {
+      accept: '/videocall/accept-call',
+      reject: '/videocall/reject-call',
+    },
+  };
+
+  const endpointSet = endpoints[callKind] || endpoints.session;
+
+  if (actionIdentifier === CALL_REJECT_ACTION) {
+    try {
+      await api.post(endpointSet.reject, { callId });
+    } catch (error) {
+      console.log('[push] no se pudo rechazar desde notificacion:', error?.message || error);
+    }
+    return;
+  }
+
+  if (actionIdentifier === CALL_ACCEPT_ACTION) {
+    try {
+      await api.post(endpointSet.accept, { callId });
+    } catch (error) {
+      console.log('[push] no se pudo aceptar desde notificacion:', error?.message || error);
+    }
+  }
+
+  router.push({
+    pathname: '/calls/[callId]',
+    params: {
+      callId,
+      role: data?.params?.role || 'callee',
+    },
+  });
 }
 
 export default function PushNotificationBridge() {
   const { user } = useContext(AuthContext);
   const registrationRef = useRef({ userId: null, token: null });
   const appStateRef = useRef(AppState.currentState);
+  const lastHandledResponseRef = useRef('');
 
   useEffect(() => {
     let active = true;
     let receivedSubscription = null;
     let responseSubscription = null;
     let appStateSubscription = null;
+
+    async function ensureNotificationCategories() {
+      try {
+        await Notifications.setNotificationCategoryAsync(
+          CALL_CATEGORY_ID,
+          [
+            {
+              identifier: CALL_ACCEPT_ACTION,
+              buttonTitle: 'Atender',
+              options: {
+                opensAppToForeground: true,
+              },
+            },
+            {
+              identifier: CALL_REJECT_ACTION,
+              buttonTitle: 'Rechazar',
+              options: {
+                isDestructive: true,
+                opensAppToForeground: false,
+              },
+            },
+          ],
+        );
+      } catch (error) {
+        console.log('[push] no se pudo registrar la categoria de llamadas:', error?.message || error);
+      }
+    }
 
     async function registerPushToken() {
       try {
@@ -163,7 +246,47 @@ export default function PushNotificationBridge() {
       }
     }
 
-    registerPushToken();
+    async function handleResponse(response) {
+      const actionIdentifier = response?.actionIdentifier;
+      const data = extractNotificationData(response);
+      const notificationId = getNotificationId(data);
+      const responseKey = `${notificationId || 'no-id'}:${actionIdentifier || 'default'}`;
+
+      if (responseKey === lastHandledResponseRef.current) {
+        return;
+      }
+
+      lastHandledResponseRef.current = responseKey;
+
+      if (notificationId && hasSeenNotificationId(notificationId)) {
+        return;
+      }
+
+      if (notificationId) {
+        markNotificationSeen(notificationId);
+      }
+
+      if (data?.type === 'call_invite' || data?.type === 'video_call_invite' || data?.callId) {
+        if (actionIdentifier === CALL_REJECT_ACTION || actionIdentifier === CALL_ACCEPT_ACTION) {
+          await handleCallInviteAction(data, actionIdentifier);
+          return;
+        }
+      }
+
+      navigateFromNotification(data);
+    }
+
+    async function bootstrap() {
+      await ensureNotificationCategories();
+      await registerPushToken();
+
+      const lastResponse = await Notifications.getLastNotificationResponseAsync();
+      if (lastResponse) {
+        await handleResponse(lastResponse);
+      }
+    }
+
+    bootstrap();
 
     appStateSubscription = AppState.addEventListener('change', (nextState) => {
       const wasBackground = /inactive|background/.test(appStateRef.current);
@@ -187,8 +310,9 @@ export default function PushNotificationBridge() {
     });
 
     responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
-      const data = extractNotificationData(response);
-      navigateFromNotification(data);
+      handleResponse(response).catch((error) => {
+        console.log('[push] no se pudo manejar la respuesta de la notificacion:', error?.message || error);
+      });
     });
 
     return () => {

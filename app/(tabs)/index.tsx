@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import React, { useContext } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AuthContext } from '../../context/AuthContext';
 
@@ -22,8 +22,26 @@ function QuickAction({ icon, label, onPress, accent }: QuickActionProps) {
 }
 
 export default function HomeScreen() {
-  const { user } = useContext(AuthContext);
+  const { user, logout } = useContext(AuthContext);
   const insets = useSafeAreaInsets();
+
+  const handleLogout = () => {
+    Alert.alert('Cerrar sesión', '¿Quieres salir de tu cuenta ahora?', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Salir',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await logout();
+            router.replace('/auth/login');
+          } catch (error) {
+            console.error('Error cerrando sesión:', error);
+          }
+        },
+      },
+    ]);
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -31,36 +49,46 @@ export default function HomeScreen() {
         style={styles.container}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 20 }]}
       >
-      <View style={styles.hero}>
-        <Text style={styles.kicker}>Inicio</Text>
-        <Text style={styles.title}>Panel principal</Text>
-        <Text style={styles.subtitle}>
-          {user?.name ? `Hola ${user.name}, desde aquí gestionás tu cuenta y tus contactos.` : 'Gestioná tu cuenta desde un solo lugar.'}
-        </Text>
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Accesos rápidos</Text>
-        <View style={styles.grid}>
-          <QuickAction icon="people-outline" label="Contactos" onPress={() => router.push('/contacts')} />
-          <QuickAction icon="time-outline" label="Historial" onPress={() => router.push('/history')} />
-          <QuickAction icon="chatbubble-ellipses-outline" label="Mensajes" onPress={() => router.push('/messages')} />
+        <View style={styles.hero}>
+          <Text style={styles.kicker}>Inicio</Text>
+          <Text style={styles.title}>Panel principal</Text>
+          <Text style={styles.subtitle}>
+            {user?.name
+              ? `Hola ${user.name}, desde aquí gestionás tu cuenta y tus contactos.`
+              : 'Gestioná tu cuenta desde un solo lugar.'}
+          </Text>
         </View>
-      </View>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Tu cuenta</Text>
-        <View style={styles.summaryRow}>
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryLabel}>Nombre</Text>
-            <Text style={styles.summaryValue}>{user?.name || 'Sin usuario'}</Text>
-          </View>
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryLabel}>Rol</Text>
-            <Text style={styles.summaryValue}>{user?.role === 'admin' ? 'Administrador' : 'Anfitrión'}</Text>
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Accesos rápidos</Text>
+          <View style={styles.grid}>
+            <QuickAction icon="people-outline" label="Contactos" onPress={() => router.push('/contacts')} />
+            <QuickAction icon="time-outline" label="Historial" onPress={() => router.push('/history')} />
+            <QuickAction icon="chatbubble-ellipses-outline" label="Mensajes" onPress={() => router.push('/messages')} />
+            <QuickAction icon="qr-code-outline" label="Mi QR" onPress={() => router.push('/qr')} accent />
           </View>
         </View>
-      </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Tu cuenta</Text>
+          <View style={styles.summaryRow}>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>Nombre</Text>
+              <Text style={styles.summaryValue}>{user?.name || 'Sin usuario'}</Text>
+            </View>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>Rol</Text>
+              <Text style={styles.summaryValue}>
+                {user?.role === 'admin' ? 'Administrador' : 'Anfitrión'}
+              </Text>
+            </View>
+          </View>
+
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+            <Ionicons name="log-out-outline" size={18} color="#7D1522" />
+            <Text style={styles.logoutButtonText}>Cerrar sesión</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -162,5 +190,22 @@ const styles = StyleSheet.create({
     color: '#3D3D3D',
     fontFamily: 'BaiJamjuree-Bold',
     fontSize: 15,
+  },
+  logoutButton: {
+    minHeight: 48,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E6D7DA',
+    backgroundColor: '#F8EDEF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 4,
+  },
+  logoutButtonText: {
+    color: '#7D1522',
+    fontFamily: 'BaiJamjuree-Bold',
+    fontSize: 14,
   },
 });

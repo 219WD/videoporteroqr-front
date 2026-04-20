@@ -2,7 +2,7 @@
 import React, { useContext, useEffect, useRef } from 'react';
 import { Alert } from 'react-native';
 import io from 'socket.io-client';
-import { router } from 'expo-router';
+import { router, usePathname } from 'expo-router';
 import { AuthContext } from '../context/AuthContext';
 import { SOCKET_URL } from '../utils/backend';
 import { hasSeenNotificationId, markNotificationSeen } from '../utils/notificationDeduper';
@@ -45,7 +45,10 @@ function handleNotificationPayload(payload) {
 
 export default function CallSignalListener() {
   const { user } = useContext(AuthContext);
+  const pathname = usePathname();
   const socketRef = useRef<any>(null);
+
+  const isInCallScreen = pathname?.startsWith('/calls/');
 
   useEffect(() => {
     if (!user?.id) return;
@@ -67,11 +70,21 @@ export default function CallSignalListener() {
 
     socket.on('call:invite', handleNotificationPayload);
     socket.on('notification:incoming', handleNotificationPayload);
+    socket.on('call:timeout', (payload) => {
+      if (isInCallScreen) return;
+
+      Alert.alert(
+        'Llamada perdida',
+        payload?.callee?.id?.toString?.() === user.id.toString()
+          ? 'No respondiste a tiempo'
+          : 'Tu contacto no respondió a tiempo',
+      );
+    });
 
     return () => {
       socket.disconnect();
     };
-  }, [user?.id, user?.role]);
+  }, [isInCallScreen, user?.id, user?.role]);
 
   return null;
 }

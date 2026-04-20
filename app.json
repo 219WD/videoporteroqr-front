@@ -13,6 +13,7 @@
     ],
     "android": {
       "package": "com.labs219.qrdoor",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#FFFFFF"
@@ -63,6 +64,10 @@
       ],
       "expo-notifications"
     ],
+    "notification": {
+      "icon": "./assets/images/android-icon-monochrome.png",
+      "color": "#7D1522"
+    },
     "extra": {
       "router": {
         "origin": false
