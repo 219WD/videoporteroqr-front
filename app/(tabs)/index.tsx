@@ -45,7 +45,6 @@ export default function HomeScreen() {
           <QuickAction icon="people-outline" label="Contactos" onPress={() => router.push('/contacts')} />
           <QuickAction icon="time-outline" label="Historial" onPress={() => router.push('/history')} />
           <QuickAction icon="chatbubble-ellipses-outline" label="Mensajes" onPress={() => router.push('/messages')} />
-          <QuickAction icon="qr-code-outline" label="Escanear QR" onPress={() => router.push('/qr/scan')} accent />
         </View>
       </View>
 
