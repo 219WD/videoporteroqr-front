@@ -2,8 +2,9 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import React, { useContext } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AuthContext } from '../../context/AuthContext';
+import AppView from '../../components/AppView';
 
 type QuickActionProps = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -44,7 +45,7 @@ export default function HomeScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+    <AppView style={styles.container}>
       <ScrollView
         style={styles.container}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 20 }]}
@@ -90,7 +91,7 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </AppView>
   );
 }
 
@@ -100,7 +101,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FAFFFF',
   },
   content: {
-    padding: 20,
     gap: 16,
   },
   hero: {

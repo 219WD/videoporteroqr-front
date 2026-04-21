@@ -13,7 +13,6 @@
     ],
     "android": {
       "package": "com.labs219.qrdoor",
-      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#FFFFFF"
@@ -62,7 +61,13 @@
           "recordAudioAndroid": true
         }
       ],
-      "expo-notifications"
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/android-icon-monochrome.png",
+          "color": "#7D1522"
+        }
+      ]
     ],
     "notification": {
       "icon": "./assets/images/android-icon-monochrome.png",

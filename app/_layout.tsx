@@ -38,6 +38,7 @@ function AppNavigator() {
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="qr-scan" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
         <Stack.Screen name="calls" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
       </Stack>
   );

@@ -12,7 +12,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import AppView from '../../components/AppView';
 import { api } from '../../utils/api';
 
 type ContactItem = {
@@ -204,7 +205,7 @@ export default function ContactsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+    <AppView style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerRow}>
           <View style={styles.headerText}>
@@ -250,7 +251,7 @@ export default function ContactsScreen() {
           }
         />
       )}
-    </SafeAreaView>
+    </AppView>
   );
 }
 
@@ -260,8 +261,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FAFFFF',
   },
   header: {
-    paddingHorizontal: 20,
-    paddingTop: 56,
     paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#E8E8E8',
@@ -307,7 +306,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   list: {
-    padding: 20,
     gap: 12,
   },
   card: {

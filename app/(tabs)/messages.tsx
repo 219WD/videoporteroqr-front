@@ -12,7 +12,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import AppView from '../../components/AppView';
 import io from 'socket.io-client';
 import { AuthContext } from '../../context/AuthContext';
 import { api } from '../../utils/api';
@@ -135,9 +136,9 @@ export default function MessagesScreen() {
         current.map((item) =>
           item.conversationId === payload.conversationId
             ? {
-                ...item,
-                unreadCount: 0,
-              }
+              ...item,
+              unreadCount: 0,
+            }
             : item,
         ),
       );
@@ -200,7 +201,7 @@ export default function MessagesScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+    <AppView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Mensajes</Text>
         <Text style={styles.subtitle}>Chats activos con tus contactos</Text>
@@ -233,7 +234,7 @@ export default function MessagesScreen() {
           }
         />
       )}
-    </SafeAreaView>
+    </AppView>
   );
 }
 
@@ -243,8 +244,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FAFFFF',
   },
   header: {
-    paddingHorizontal: 20,
-    paddingTop: 56,
     paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#E8E8E8',
@@ -262,7 +261,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   list: {
-    padding: 20,
     gap: 12,
   },
   card: {

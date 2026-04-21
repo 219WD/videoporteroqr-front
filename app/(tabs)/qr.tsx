@@ -1,18 +1,18 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { CameraView, useCameraPermissions } from 'expo-camera';
-import { router } from 'expo-router';
-import React, { useContext, useMemo, useRef, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import { useLocalSearchParams, router } from 'expo-router';
+import React, { useCallback, useContext, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Image,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { AuthContext } from '../../context/AuthContext';
+import AppView from '../../components/AppView';
 import { api } from '../../utils/api';
 
 type ProfileCard = {
@@ -22,83 +22,72 @@ type ProfileCard = {
   qrCode?: string | null;
 };
 
-function extractQrCode(rawValue: string) {
-  const trimmed = rawValue.trim();
-  if (!trimmed) return null;
-
-  try {
-    const url = new URL(trimmed);
-    const code = url.searchParams.get('code');
-    if (code) return code.trim();
-  } catch {
-    // The QR may contain the raw code instead of a URL.
-  }
-
-  return trimmed;
+function getStringParam(value: string | string[] | undefined) {
+  if (Array.isArray(value)) return value[0];
+  return value || '';
 }
 
 export default function QrScreen() {
-  const { user, refreshUser } = useContext(AuthContext);
-  const [permission, requestPermission] = useCameraPermissions();
-  const [scannerOpen, setScannerOpen] = useState(false);
-  const [scanning, setScanning] = useState(false);
+  const { user } = useContext(AuthContext);
+  const params = useLocalSearchParams();
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const [qrLoading, setQrLoading] = useState(false);
+  const [qrError, setQrError] = useState<string | null>(null);
   const [openingChat, setOpeningChat] = useState(false);
   const [openingCall, setOpeningCall] = useState(false);
   const [linkedProfile, setLinkedProfile] = useState<ProfileCard | null>(null);
-  const scanLockRef = useRef(false);
 
-  const qrImageSource = useMemo(() => {
-    if (!user?.qrDataUrl) return null;
-    return { uri: user.qrDataUrl };
-  }, [user?.qrDataUrl]);
+  const loadQr = useCallback(async () => {
+    try {
+      setQrLoading(true);
+      setQrError(null);
 
-  const handleOpenScanner = async () => {
-    if (!permission?.granted) {
-      const response = await requestPermission();
-      if (!response.granted) {
-        Alert.alert('Permiso requerido', 'Necesitamos acceso a la camara para escanear un QR.');
-        return;
-      }
+      const response = await api.get('/auth/qr');
+      setQrDataUrl(response.data?.qrDataUrl || null);
+    } catch (error: any) {
+      console.error('Error generando QR dinamico:', error);
+      setQrDataUrl(null);
+      setQrError(error.response?.data?.error || 'No se pudo generar el QR.');
+    } finally {
+      setQrLoading(false);
     }
+  }, []);
 
-    setScannerOpen(true);
+  useFocusEffect(
+    useCallback(() => {
+      loadQr();
+    }, [loadQr]),
+  );
+
+  useEffect(() => {
+    const linkedUserId = getStringParam(params.linkedUserId as string | string[] | undefined);
+    if (!linkedUserId) return;
+
+    const linkedUserName = getStringParam(params.linkedUserName as string | string[] | undefined);
+    const linkedUserEmail = getStringParam(params.linkedUserEmail as string | string[] | undefined);
+    const linkedUserQrCode = getStringParam(params.linkedUserQrCode as string | string[] | undefined);
+
+    setLinkedProfile({
+      id: linkedUserId,
+      name: linkedUserName || 'Usuario vinculado',
+      email: linkedUserEmail || null,
+      qrCode: linkedUserQrCode || null,
+    });
+
+    router.setParams({
+      linkedUserId: undefined,
+      linkedUserName: undefined,
+      linkedUserEmail: undefined,
+      linkedUserQrCode: undefined,
+    });
+  }, [params.linkedUserEmail, params.linkedUserId, params.linkedUserName, params.linkedUserQrCode]);
+
+  const openScanner = () => {
+    router.push('/qr-scan');
   };
 
-  const handleBarcodeScanned = async ({ data }: { data: string }) => {
-    if (scanning || scanLockRef.current) return;
-    scanLockRef.current = true;
-
-    const code = extractQrCode(data);
-    if (!code) {
-      scanLockRef.current = false;
-      Alert.alert('QR invalido', 'No pudimos leer el codigo del QR.');
-      return;
-    }
-
-    try {
-      setScanning(true);
-      const response = await api.post('/auth/join-host-by-qr', { code });
-      const host = response.data?.host;
-
-      if (host?.id) {
-        setLinkedProfile({
-          id: host.id,
-          name: host.name,
-          email: host.email || null,
-          qrCode: host.qrCode || null,
-        });
-      }
-
-      await refreshUser();
-      setScannerOpen(false);
-      Alert.alert('Vinculacion completa', response.data?.message || 'Te vinculaste correctamente.');
-    } catch (error: any) {
-      console.error('Error vinculando QR:', error);
-      Alert.alert('Error', error.response?.data?.error || 'No se pudo vincular el QR.');
-    } finally {
-      setScanning(false);
-      scanLockRef.current = false;
-    }
+  const regenerateQr = () => {
+    loadQr();
   };
 
   const openChatWithProfile = async () => {
@@ -157,79 +146,56 @@ export default function QrScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <AppView style={styles.container}>
       <View style={styles.hero}>
         <Text style={styles.kicker}>QR</Text>
         <Text style={styles.title}>Tu codigo y escaner</Text>
         <Text style={styles.subtitle}>
-          Muestra tu QR para que te vinculen y escanea el QR de otro usuario para conectarte.
+          Muestra tu QR para que te vinculen y abre el scanner en pantalla completa para leer el QR de otro usuario.
         </Text>
       </View>
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Mi QR</Text>
         <View style={styles.qrBox}>
-          {qrImageSource ? (
-            <Image source={qrImageSource} style={styles.qrImage} resizeMode="contain" />
+          {qrLoading ? (
+            <ActivityIndicator size="large" color="#7D1522" />
+          ) : qrDataUrl ? (
+            <Image source={{ uri: qrDataUrl }} style={styles.qrImage} resizeMode="contain" />
           ) : (
             <View style={styles.qrFallback}>
               <Ionicons name="qr-code-outline" size={52} color="#7D1522" />
-              <Text style={styles.fallbackText}>No hay QR disponible</Text>
+              <Text style={styles.fallbackText}>{qrError || 'No hay QR disponible'}</Text>
             </View>
           )}
         </View>
         <Text style={styles.helperText}>
-          {user?.qrCode ? 'Este es el codigo de tu cuenta.' : 'Inicia sesion nuevamente si el QR no aparece.'}
+          {user?.qrCode
+            ? 'Este es el codigo de tu cuenta.'
+            : 'Inicia sesion nuevamente si el QR no aparece.'}
         </Text>
+        <TouchableOpacity style={styles.secondaryButton} onPress={regenerateQr} disabled={qrLoading}>
+          {qrLoading ? (
+            <ActivityIndicator size="small" color="#7D1522" />
+          ) : (
+            <Ionicons name="refresh-outline" size={18} color="#7D1522" />
+          )}
+          <Text style={styles.secondaryButtonText}>
+            {qrDataUrl ? 'Regenerar QR' : 'Reintentar QR'}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Escanear otro QR</Text>
+        <Text style={styles.cardTitle}>Escanear QR</Text>
         <Text style={styles.helperText}>
-          Abre la camara, lee el QR de otro usuario y vincularlo a tu cuenta.
+          Abre una pantalla dedicada con overlay de scanner para vincular el QR de otro usuario.
         </Text>
 
-        {!scannerOpen ? (
-          <TouchableOpacity style={styles.primaryButton} onPress={handleOpenScanner}>
-            <Ionicons name="scan" size={18} color="#FAFFFF" />
-            <Text style={styles.primaryButtonText}>Abrir escaner</Text>
-          </TouchableOpacity>
-        ) : (
-          <View style={styles.scannerShell}>
-            <View style={styles.scannerHeader}>
-              <Text style={styles.scannerTitle}>Apunta al QR</Text>
-              <TouchableOpacity
-                style={styles.secondaryButton}
-                onPress={() => setScannerOpen(false)}
-                disabled={scanning}
-              >
-                <Text style={styles.secondaryButtonText}>Cerrar</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.scannerFrame}>
-              <CameraView
-                style={StyleSheet.absoluteFillObject}
-                facing="back"
-                barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-                onBarcodeScanned={handleBarcodeScanned}
-              />
-              <View style={styles.scannerOverlay}>
-                <View style={styles.scannerCornerTopLeft} />
-                <View style={styles.scannerCornerTopRight} />
-                <View style={styles.scannerCornerBottomLeft} />
-                <View style={styles.scannerCornerBottomRight} />
-              </View>
-            </View>
-
-            {scanning ? (
-              <View style={styles.scanningRow}>
-                <ActivityIndicator size="small" color="#7D1522" />
-                <Text style={styles.scanningText}>Procesando QR...</Text>
-              </View>
-            ) : null}
-          </View>
-        )}
+        <TouchableOpacity style={styles.primaryButton} onPress={openScanner}>
+          <Ionicons name="scan" size={18} color="#FAFFFF" />
+          <Text style={styles.primaryButtonText}>Abrir scanner</Text>
+        </TouchableOpacity>
       </View>
 
       {linkedProfile ? (
@@ -274,15 +240,7 @@ export default function QrScreen() {
           </View>
         </View>
       ) : null}
-
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Acceso rapido</Text>
-        <TouchableOpacity style={styles.secondaryAction} onPress={handleOpenScanner}>
-          <Ionicons name="scan-outline" size={18} color="#7D1522" />
-          <Text style={styles.secondaryActionText}>Reabrir escaner</Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+    </AppView>
   );
 }
 
@@ -292,7 +250,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FAFFFF',
   },
   content: {
-    padding: 20,
     gap: 16,
   },
   hero: {
@@ -377,105 +334,8 @@ const styles = StyleSheet.create({
     fontFamily: 'BaiJamjuree-Bold',
     fontSize: 15,
   },
-  scannerShell: {
-    gap: 14,
-  },
-  scannerHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 12,
-  },
-  scannerTitle: {
-    color: '#3D3D3D',
-    fontFamily: 'BaiJamjuree-Bold',
-    fontSize: 15,
-  },
   secondaryButton: {
-    minHeight: 38,
-    paddingHorizontal: 14,
-    borderRadius: 999,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#E6D7DA',
-    backgroundColor: '#F8EDEF',
-  },
-  secondaryButtonText: {
-    color: '#7D1522',
-    fontFamily: 'BaiJamjuree-Bold',
-    fontSize: 13,
-  },
-  scannerFrame: {
-    aspectRatio: 0.85,
-    borderRadius: 18,
-    overflow: 'hidden',
-    backgroundColor: '#111',
-  },
-  scannerOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: 18,
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.18)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  scannerCornerTopLeft: {
-    position: 'absolute',
-    top: 18,
-    left: 18,
-    width: 42,
-    height: 42,
-    borderTopWidth: 4,
-    borderLeftWidth: 4,
-    borderColor: '#FAFFFF',
-    borderTopLeftRadius: 10,
-  },
-  scannerCornerTopRight: {
-    position: 'absolute',
-    top: 18,
-    right: 18,
-    width: 42,
-    height: 42,
-    borderTopWidth: 4,
-    borderRightWidth: 4,
-    borderColor: '#FAFFFF',
-    borderTopRightRadius: 10,
-  },
-  scannerCornerBottomLeft: {
-    position: 'absolute',
-    bottom: 18,
-    left: 18,
-    width: 42,
-    height: 42,
-    borderBottomWidth: 4,
-    borderLeftWidth: 4,
-    borderColor: '#FAFFFF',
-    borderBottomLeftRadius: 10,
-  },
-  scannerCornerBottomRight: {
-    position: 'absolute',
-    bottom: 18,
-    right: 18,
-    width: 42,
-    height: 42,
-    borderBottomWidth: 4,
-    borderRightWidth: 4,
-    borderColor: '#FAFFFF',
-    borderBottomRightRadius: 10,
-  },
-  scanningRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-  },
-  scanningText: {
-    color: '#666',
-    fontFamily: 'BaiJamjuree',
-  },
-  secondaryAction: {
-    minHeight: 52,
+    minHeight: 48,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: '#E6D7DA',
@@ -483,12 +343,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
+    gap: 8,
   },
-  secondaryActionText: {
+  secondaryButtonText: {
     color: '#7D1522',
     fontFamily: 'BaiJamjuree-Bold',
-    fontSize: 15,
+    fontSize: 14,
   },
   profileHeader: {
     flexDirection: 'row',

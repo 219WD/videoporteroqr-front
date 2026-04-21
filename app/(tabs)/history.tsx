@@ -2,7 +2,8 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useCallback, useContext, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import AppView from '../../components/AppView';
 import { AuthContext } from '../../context/AuthContext';
 import { api } from '../../utils/api';
 
@@ -135,7 +136,7 @@ export default function HistoryScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+    <AppView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Historial</Text>
         <Text style={styles.subtitle}>Registro de llamadas recientes</Text>
@@ -161,7 +162,7 @@ export default function HistoryScreen() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#7D1522']} />}
         />
       )}
-    </SafeAreaView>
+    </AppView>
   );
 }
 
@@ -171,8 +172,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FAFFFF',
   },
   header: {
-    paddingHorizontal: 20,
-    paddingTop: 56,
     paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#E8E8E8',
@@ -190,7 +189,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   list: {
-    padding: 20,
     gap: 12,
   },
   card: {
