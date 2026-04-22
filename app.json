@@ -1,17 +1,23 @@
 {
   "expo": {
     "name": "QR Door",
-    "slug": "qr-door",
+    "slug": "video-portore",
     "version": "1.0.0",
     "scheme": "qrdoor",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
+    "splash": {
+      "image": "./assets/images/01.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FFFFFF"
+    },
     "userInterfaceStyle": "automatic",
-    // QUITA ESTA LÍNEA → "jsEngine": "jsc",
-    "platforms": ["ios", "android"],
-   
+    "platforms": [
+      "ios",
+      "android"
+    ],
     "android": {
-      "package": "com.yourcompany.qrdoor",
+      "package": "com.labs219.qrdoor",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#FFFFFF"
@@ -21,25 +27,33 @@
         "RECORD_AUDIO",
         "INTERNET",
         "VIBRATE",
-        "POST_NOTIFICATIONS",
         "ACCESS_NETWORK_STATE",
-        "MODIFY_AUDIO_SETTINGS"
+        "MODIFY_AUDIO_SETTINGS",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
       ]
     },
-   
     "ios": {
-      "bundleIdentifier": "com.yourcompany.qrdoor",
+      "bundleIdentifier": "com.labs219.qrdoor",
       "supportsTablet": true,
       "infoPlist": {
-        "NSCameraUsageDescription": "Esta aplicación necesita acceso a la cámara para video llamadas",
-        "NSMicrophoneUsageDescription": "Esta aplicación necesita acceso al micrófono para video llamadas",
+        "NSCameraUsageDescription": "Esta aplicación necesita acceso a la cámara para videollamadas",
+        "NSMicrophoneUsageDescription": "Esta aplicación necesita acceso al micrófono para videollamadas",
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true
         }
       }
     },
-   
     "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/01.png",
+          "imageWidth": 240,
+          "resizeMode": "contain",
+          "backgroundColor": "#FFFFFF"
+        }
+      ],
       "expo-router",
       [
         "expo-build-properties",
@@ -54,33 +68,33 @@
         }
       ],
       [
-        "expo-notifications",
-        {
-          "icon": "./assets/images/adaptive-icon.png",
-          "color": "#7D1522",
-          "sounds": ["./assets/sounds/doorbell.mp3"],
-          "mode": "production"
-        }
-      ],
-      [
         "expo-camera",
         {
-          "cameraPermission": "Permite a $(PRODUCT_NAME) acceder a tu cámara para video llamadas.",
-          "microphonePermission": "Permite a $(PRODUCT_NAME) acceder a tu micrófono para video llamadas.",
+          "cameraPermission": "Permite a $(PRODUCT_NAME) acceder a tu cámara para videollamadas.",
+          "microphonePermission": "Permite a $(PRODUCT_NAME) acceder a tu micrófono para videollamadas.",
           "recordAudioAndroid": true
         }
       ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/android-icon-monochrome.png",
+          "color": "#7D1522"
+        }
+      ]
     ],
-   
+    "notification": {
+      "icon": "./assets/images/android-icon-monochrome.png",
+      "color": "#7D1522"
+    },
     "extra": {
       "router": {
         "origin": false
       },
       "eas": {
-        "projectId": "a15c1b1f-ad22-4eb7-bddc-66266cac2cce"
+        "projectId": "c25b3c79-2ed8-4e77-ac3c-211cf738f05e"
       }
     },
-   
-    "owner": "jcanepa"
+    "owner": "josescap1"
   }
 }

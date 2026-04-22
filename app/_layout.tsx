@@ -3,21 +3,56 @@
 
 import { BaiJamjuree_400Regular, BaiJamjuree_700Bold } from '@expo-google-fonts/bai-jamjuree';
 import { useFonts } from 'expo-font';
-import * as Notifications from 'expo-notifications';
+import * as SplashScreen from 'expo-splash-screen';
+import { StatusBar } from 'expo-status-bar';
 import { Stack } from "expo-router";
-import { useEffect } from 'react';
-import { ActivityIndicator, View } from "react-native";
+import { useContext, useEffect } from 'react';
+import { View } from "react-native";
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from "../context/AuthContext";
-import { VideoCallProvider } from "../context/VideoCallContext";
+import { AuthContext } from "../context/AuthContext";
+import CallSignalListener from "../components/CallSignalListener";
+import PushNotificationBridge from "../components/PushNotificationBridge";
 
-// CONFIGURAR NOTIFICACIONES GLOBALMENTE
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
+SplashScreen.preventAutoHideAsync().catch(() => {
+  // Ignore repeated calls during fast refresh.
 });
+
+function AppNavigator({ appReady }: { appReady: boolean }) {
+  const { user, loading } = useContext(AuthContext);
+
+  useEffect(() => {
+    if (appReady && !loading) {
+      SplashScreen.hideAsync().catch(() => {
+        // Ignore splash hide races on startup.
+      });
+    }
+  }, [appReady, loading]);
+
+  if (loading) {
+    return null;
+  }
+
+  if (!user) {
+    return (
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="auth/login" options={{ headerShown: false }} />
+        <Stack.Screen name="auth/register" options={{ headerShown: false }} />
+      </Stack>
+    );
+  }
+
+  return (
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="flows" options={{ headerShown: false, presentation: 'modal' }} />
+        <Stack.Screen name="qr-scan" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
+        <Stack.Screen name="calls" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
+      </Stack>
+  );
+}
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -25,50 +60,18 @@ export default function RootLayout() {
     'BaiJamjuree-Bold': BaiJamjuree_700Bold,
   });
 
-  useEffect(() => {
-    const setupNotifications = async () => {
-      try {
-        const { status } = await Notifications.requestPermissionsAsync();
-        if (status !== 'granted') {
-          console.log('Permisos de notificación no concedidos');
-          return;
-        }
-
-        await Notifications.setNotificationChannelAsync('default', {
-          name: 'default',
-          importance: Notifications.AndroidImportance.MAX,
-          vibrationPattern: [0, 250, 250, 250],
-          lightColor: '#7D1522',
-        });
-
-        console.log('Notificaciones configuradas correctamente');
-      } catch (error) {
-        console.error('Error configurando notificaciones:', error);
-      }
-    };
-
-    setupNotifications();
-  }, []);
-
   if (!fontsLoaded) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#7D1522" />
-      </View>
-    );
+    return null;
   }
 
   return (
-    <AuthProvider>
-      <VideoCallProvider>
-        <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="dashboard" options={{ headerShown: false }} />
-          <Stack.Screen name="qr" options={{ headerShown: false }} />
-          <Stack.Screen name="video-call" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
-          <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
-        </Stack>
-      </VideoCallProvider>
-    </AuthProvider>
+    <SafeAreaProvider>
+      <StatusBar style="dark" backgroundColor="#FAFFFF" translucent={false} />
+      <AuthProvider>
+        <PushNotificationBridge />
+        <CallSignalListener />
+        <AppNavigator appReady={fontsLoaded} />
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }

@@ -1,7 +1,7 @@
-// context/AuthContext.js - VERSIÓN SIN NOTIFICACIONES PUSH
-import React, { createContext, useState, useEffect } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { api } from "../utils/api";
+// context/AuthContext.js - auth state and session helpers
+import React, { createContext, useEffect, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { api } from '../utils/api';
 
 export const AuthContext = createContext();
 
@@ -15,8 +15,8 @@ export function AuthProvider({ children }) {
 
   async function loadUser() {
     try {
-      const token = await AsyncStorage.getItem("token");
-      console.log("🔐 Token encontrado:", !!token);
+      const token = await AsyncStorage.getItem('token');
+      console.log('Token encontrado:', !!token);
 
       if (!token) {
         setUser(null);
@@ -24,37 +24,41 @@ export function AuthProvider({ children }) {
         return;
       }
 
-      const { data } = await api.get("/auth/me");
+      const { data } = await api.get('/auth/me');
       setUser(data);
     } catch (error) {
-      console.log("🔐 Error en loadUser:", error);
-      await AsyncStorage.removeItem("token");
+      console.log('Error en loadUser:', error);
+      await AsyncStorage.removeItem('token');
       setUser(null);
     } finally {
       setLoading(false);
     }
   }
 
+  async function refreshUser() {
+    await loadUser();
+  }
+
   async function login(email, password) {
     try {
-      console.log("🔐 Login llamado con:", email);
-      
-      const { data } = await api.post("/auth/login", { email, password });
+      console.log('Login llamado con:', email);
 
-      await AsyncStorage.setItem("token", data.token);
+      const { data } = await api.post('/auth/login', { email, password });
+
+      await AsyncStorage.setItem('token', data.token);
       setUser(data.user);
-      console.log("🔐 Login exitoso");
+      console.log('Login exitoso');
 
       return data.user;
     } catch (error) {
-      console.error("🔐 Error en login:", error);
+      console.error('Error en login:', error);
       throw error;
     }
   }
 
   async function register(name, email, password, role) {
     try {
-      const { data } = await api.post("/auth/register", {
+      const { data } = await api.post('/auth/register', {
         name,
         email,
         password,
@@ -62,50 +66,48 @@ export function AuthProvider({ children }) {
       });
 
       if (data.token) {
-        await AsyncStorage.setItem("token", data.token);
+        await AsyncStorage.setItem('token', data.token);
       }
 
       const userData = data.user || data.host || data;
       setUser(userData);
       return userData;
-
     } catch (error) {
-      console.error("🔐 Error en register:", error);
+      console.error('Error en register:', error);
       throw error;
     }
   }
 
   async function registerHost(name, email, password) {
     try {
-      console.log("🔐 RegisterHost llamado:", email);
-      
-      const { data } = await api.post("/auth/register", {
+      console.log('RegisterHost llamado:', email);
+
+      const { data } = await api.post('/auth/register', {
         name,
         email,
         password,
       });
 
       if (data.token) {
-        await AsyncStorage.setItem("token", data.token);
+        await AsyncStorage.setItem('token', data.token);
       }
 
       const userData = data.host || data;
       setUser(userData);
       return userData;
-
     } catch (error) {
-      console.error("🔐 Error en registerHost:", error);
+      console.error('Error en registerHost:', error);
       throw error;
     }
   }
 
   async function logout() {
     try {
-      await AsyncStorage.removeItem("token");
+      await AsyncStorage.removeItem('token');
       setUser(null);
-      console.log("🔐 Logout completado");
+      console.log('Logout completado');
     } catch (error) {
-      console.error("🔐 Error en logout:", error);
+      console.error('Error en logout:', error);
     }
   }
 
@@ -116,11 +118,8 @@ export function AuthProvider({ children }) {
     register,
     registerHost,
     logout,
+    refreshUser,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

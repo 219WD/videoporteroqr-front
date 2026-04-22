@@ -1,337 +1,328 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { router } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
-import React, { useCallback, useContext, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
-    ActivityIndicator,
-    Alert,
-    Dimensions,
-    FlatList,
-    Image,
-    Modal,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import AppView from '../../components/AppView';
+import io from 'socket.io-client';
 import { AuthContext } from '../../context/AuthContext';
 import { api } from '../../utils/api';
+import { SOCKET_URL } from '../../utils/backend';
 
-const { width } = Dimensions.get('window');
+type ConversationItem = {
+  id: string;
+  conversationId: string;
+  contact: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+  } | null;
+  lastMessageAt: string | null;
+  lastMessageText: string | null;
+  lastMessageSenderName: string | null;
+  messageCount: number;
+  unreadCount: number;
+};
 
-// Definir tipos
-interface FlowMessage {
-  _id: string;
-  message: string;
-  sender: 'host' | 'guest';
-  timestamp: string;
-}
-
-interface FlowDetail {
-  _id: string;
+type AnonymousConversationItem = {
+  id: string;
+  callId: string;
   guestName: string;
-  guestEmail: string;
-  guestPhone?: string;
-  guestCompany?: string;
-  isAnonymous: boolean;
-  guestDataProvided: boolean;
-  status: 'pending' | 'answered' | 'timeout' | 'rejected';
-  response?: 'accept' | 'reject' | 'timeout';
-  actionType: 'call' | 'message';
-  callType: 'video' | 'message' | 'doorbell';
-  messageContent?: string;
-  createdAt: string;
-  answeredAt?: string;
-  messages: FlowMessage[];
-}
-
-interface FlowSummary {
-  _id: string;
-  guestName: string;
-  guestEmail: string;
-  guestPhone?: string;
-  guestCompany?: string;
-  isAnonymous: boolean;
+  actionType: 'message' | 'call';
   status: string;
-  actionType: string;
-  callType: string;
-  messagePreview?: string;
-  createdAt: string;
-  unreadMessages: number;
-  lastMessageTime: string;
+  response?: string | null;
+  lastMessageAt: string | null;
+  lastMessageText: string | null;
+  lastMessageSender: 'host' | 'guest' | null;
+  messageCount: number;
+  hostUnreadCount: number;
+  isAnonymous: boolean;
+  createdAt?: string | null;
+  answeredAt?: string | null;
+};
+
+type TabKey = 'contacts' | 'anonymous';
+
+function upsertConversation(
+  list: ConversationItem[],
+  payload: Partial<ConversationItem> & { conversationId: string },
+) {
+  const next = list.filter((item) => item.conversationId !== payload.conversationId);
+  const existing = list.find((item) => item.conversationId === payload.conversationId);
+  const merged: ConversationItem = {
+    id: payload.conversationId,
+    conversationId: payload.conversationId,
+    contact: payload.contact ?? existing?.contact ?? null,
+    lastMessageAt: payload.lastMessageAt ?? existing?.lastMessageAt ?? null,
+    lastMessageText: payload.lastMessageText ?? existing?.lastMessageText ?? null,
+    lastMessageSenderName: payload.lastMessageSenderName ?? existing?.lastMessageSenderName ?? null,
+    messageCount: payload.messageCount ?? existing?.messageCount ?? 0,
+    unreadCount: payload.unreadCount ?? existing?.unreadCount ?? 0,
+  };
+
+  next.unshift(merged);
+  return next;
+}
+
+function upsertAnonymousConversation(
+  list: AnonymousConversationItem[],
+  payload: Partial<AnonymousConversationItem> & { callId: string },
+) {
+  const next = list.filter((item) => item.callId !== payload.callId);
+  const existing = list.find((item) => item.callId === payload.callId);
+  const merged: AnonymousConversationItem = {
+    id: payload.callId,
+    callId: payload.callId,
+    guestName: payload.guestName ?? existing?.guestName ?? 'Visitante',
+    actionType: payload.actionType ?? existing?.actionType ?? 'message',
+    status: payload.status ?? existing?.status ?? 'pending',
+    response: payload.response ?? existing?.response ?? null,
+    lastMessageAt: payload.lastMessageAt ?? existing?.lastMessageAt ?? null,
+    lastMessageText: payload.lastMessageText ?? existing?.lastMessageText ?? null,
+    lastMessageSender: payload.lastMessageSender ?? existing?.lastMessageSender ?? null,
+    messageCount: payload.messageCount ?? existing?.messageCount ?? 0,
+    hostUnreadCount: payload.hostUnreadCount ?? existing?.hostUnreadCount ?? 0,
+    isAnonymous: payload.isAnonymous ?? existing?.isAnonymous ?? true,
+    createdAt: payload.createdAt ?? existing?.createdAt ?? null,
+    answeredAt: payload.answeredAt ?? existing?.answeredAt ?? null,
+  };
+
+  next.unshift(merged);
+  return next;
 }
 
 export default function MessagesScreen() {
   const { user } = useContext(AuthContext);
-  const [flows, setFlows] = useState<FlowSummary[]>([]);
+  const insets = useSafeAreaInsets();
+  const [selectedTab, setSelectedTab] = useState<TabKey>('contacts');
+  const [conversations, setConversations] = useState<ConversationItem[]>([]);
+  const [anonymousConversations, setAnonymousConversations] = useState<AnonymousConversationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedFlow, setSelectedFlow] = useState<FlowDetail | null>(null);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [detailLoading, setDetailLoading] = useState(false);
-  const [newMessage, setNewMessage] = useState('');
-  const [sendingMessage, setSendingMessage] = useState(false);
-  const [stats, setStats] = useState({
-    total: 0,
-    withMessages: 0,
-    anonymous: 0,
-    withContact: 0
-  });
+  const socketRef = useRef<any>(null);
 
-  // Cargar flujos
-  const loadFlows = async () => {
+  const loadContacts = useCallback(async () => {
+    const response = await api.get('/messages/conversations');
+    setConversations(response.data.conversations || []);
+  }, []);
+
+  const loadAnonymous = useCallback(async () => {
+    try {
+      const response = await api.get('/messages/anonymous-conversations');
+      setAnonymousConversations(response.data.conversations || []);
+    } catch (error: any) {
+      if (error?.response?.status === 404) {
+        setAnonymousConversations([]);
+        return;
+      }
+
+      throw error;
+    }
+  }, []);
+
+  const loadAll = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await api.get('/flows/history/' + user?.id);
-      
-      if (response.data.success) {
-        const flowsData = response.data.flows || [];
-        
-        // Transformar datos para mostrar
-        const transformedFlows = flowsData.map((flow: any) => {
-          // Contar mensajes no leídos (simulación - podrías agregar campo read en el futuro)
-          const unreadMessages = flow.messages?.filter((msg: any) => 
-            msg.sender === 'guest' && !msg.read
-          ).length || 0;
-          
-          // Obtener último mensaje
-          const lastMessage = flow.messages?.length > 0 
-            ? flow.messages[flow.messages.length - 1]
-            : null;
-          
-          return {
-            _id: flow._id,
-            guestName: flow.guestName,
-            guestEmail: flow.guestEmail,
-            guestPhone: flow.guestPhone,
-            guestCompany: flow.guestCompany,
-            isAnonymous: flow.isAnonymous,
-            status: flow.status,
-            actionType: flow.actionType,
-            callType: flow.callType,
-            messagePreview: flow.messageContent 
-              ? flow.messageContent.substring(0, 50) + (flow.messageContent.length > 50 ? '...' : '')
-              : flow.messages?.[0]?.message?.substring(0, 50) || 'Sin mensaje',
-            createdAt: flow.createdAt,
-            unreadMessages,
-            lastMessageTime: lastMessage?.timestamp || flow.createdAt
-          };
-        });
-        
-        setFlows(transformedFlows);
-        
-        // Calcular estadísticas
-        const total = flowsData.length;
-        const withMessages = flowsData.filter((f: any) => 
-          f.messages && f.messages.length > 0
-        ).length;
-        const anonymous = flowsData.filter((f: any) => 
-          f.isAnonymous
-        ).length;
-        const withContact = flowsData.filter((f: any) => 
-          !f.isAnonymous && f.guestDataProvided
-        ).length;
-        
-        setStats({ total, withMessages, anonymous, withContact });
-      }
+      await loadContacts();
+      await loadAnonymous();
     } catch (error) {
-      console.error('Error cargando flujos:', error);
-      Alert.alert('Error', 'No se pudieron cargar los mensajes');
+      console.error('Error loading messages:', error);
+      Alert.alert('Error', 'No se pudieron cargar los chats');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [loadAnonymous, loadContacts]);
 
-  // Cargar detalles de un flujo
-  const loadFlowDetails = async (flowId: string) => {
-    try {
-      setDetailLoading(true);
-      const response = await api.get(`/flows/status/${flowId}`);
-      
-      if (response.data.success) {
-        setSelectedFlow(response.data.call);
-        setModalVisible(true);
-      }
-    } catch (error) {
-      console.error('Error cargando detalles:', error);
-      Alert.alert('Error', 'No se pudieron cargar los detalles');
-    } finally {
-      setDetailLoading(false);
-    }
-  };
-
-  // Enviar mensaje
-  const sendMessage = async () => {
-    if (!newMessage.trim() || !selectedFlow) return;
-    
-    try {
-      setSendingMessage(true);
-      
-      const response = await api.post(`/flows/${selectedFlow._id}/send-message`, {
-        message: newMessage.trim(),
-        sender: 'host'
-      });
-      
-      if (response.data.success) {
-        // Actualizar mensajes en el flujo seleccionado
-        const updatedFlow = { ...selectedFlow };
-        updatedFlow.messages = [
-          ...updatedFlow.messages,
-          {
-            _id: Date.now().toString(),
-            message: newMessage.trim(),
-            sender: 'host' as const,
-            timestamp: new Date().toISOString()
-          }
-        ];
-        setSelectedFlow(updatedFlow);
-        setNewMessage('');
-        
-        // Actualizar la lista de flujos
-        const updatedFlows = flows.map(flow => {
-          if (flow._id === selectedFlow._id) {
-            return {
-              ...flow,
-              messagePreview: newMessage.trim().substring(0, 50) + 
-                (newMessage.length > 50 ? '...' : ''),
-              lastMessageTime: new Date().toISOString()
-            };
-          }
-          return flow;
-        });
-        setFlows(updatedFlows);
-      }
-    } catch (error) {
-      console.error('Error enviando mensaje:', error);
-      Alert.alert('Error', 'No se pudo enviar el mensaje');
-    } finally {
-      setSendingMessage(false);
-    }
-  };
-
-  // Refrescar datos
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    loadFlows();
-  }, []);
-
-  // Recargar cuando se enfoca la pantalla
   useFocusEffect(
     useCallback(() => {
-      loadFlows();
-    }, [])
+      loadAll();
+    }, [loadAll]),
   );
 
-  // Formatear fecha
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-    
-    if (diffMins < 60) {
-      return `Hace ${diffMins} min${diffMins !== 1 ? 's' : ''}`;
-    } else if (diffHours < 24) {
-      return `Hace ${diffHours} hora${diffHours !== 1 ? 's' : ''}`;
-    } else if (diffDays < 7) {
-      return `Hace ${diffDays} día${diffDays !== 1 ? 's' : ''}`;
-    } else {
-      return date.toLocaleDateString('es-ES', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric'
+  useEffect(() => {
+    let active = true;
+
+    async function connectSocket() {
+      if (!user?.id) return;
+
+      const token = await AsyncStorage.getItem('token');
+      if (!active || !token) return;
+
+      const socket = io(SOCKET_URL, {
+        auth: { token },
+        transports: ['websocket'],
+        reconnection: true,
+        forceNew: true,
+      });
+
+      socketRef.current = socket;
+
+      socket.on('connect', () => {
+        socket.emit('user-connected', {
+          userId: user.id,
+          userType: user.role,
+        });
+      });
+
+      socket.on('conversation-updated', (payload: any) => {
+        if (!payload?.conversationId) return;
+
+        setConversations((current) => upsertConversation(current, payload));
+      });
+
+      socket.on('conversation-message', (payload: any) => {
+        if (!payload?.conversationId || !payload?.message) return;
+
+        setConversations((current) => {
+          const index = current.findIndex((item) => item.conversationId === payload.conversationId);
+          if (index === -1) return current;
+
+          const updated = [...current];
+          const target = updated[index];
+          updated.splice(index, 1);
+          updated.unshift({
+            ...target,
+            lastMessageAt: payload.message.createdAt || target.lastMessageAt,
+            lastMessageText: payload.message.text,
+            lastMessageSenderName: payload.message.senderName,
+            messageCount: target.messageCount + 1,
+            unreadCount: payload.unreadCount ?? target.unreadCount,
+          });
+          return updated;
+        });
+      });
+
+      socket.on('conversation-read', (payload: any) => {
+        if (!payload?.conversationId) return;
+
+        setConversations((current) =>
+          current.map((item) =>
+            item.conversationId === payload.conversationId
+              ? {
+                  ...item,
+                  unreadCount: 0,
+                }
+              : item,
+          ),
+        );
+      });
+
+      socket.on('anonymous-conversation-updated', (payload: any) => {
+        if (!payload?.callId) return;
+
+        setAnonymousConversations((current) => upsertAnonymousConversation(current, payload));
+      });
+
+      socket.on('new-flow-message', (payload: any) => {
+        if (!payload?.callId || !payload?.message) return;
+
+        setAnonymousConversations((current) =>
+          current
+            .map((item) =>
+              item.callId === payload.callId
+                ? {
+                    ...item,
+                    lastMessageAt: payload.timestamp || item.lastMessageAt,
+                    lastMessageText: payload.message,
+                    lastMessageSender: payload.sender || item.lastMessageSender,
+                    messageCount: item.messageCount + 1,
+                    hostUnreadCount: payload.sender === 'guest' ? item.hostUnreadCount + 1 : item.hostUnreadCount,
+                  }
+                : item,
+            )
+            .sort((a, b) => String(b.lastMessageAt || '').localeCompare(String(a.lastMessageAt || ''))),
+        );
+      });
+
+      socket.on('flow-response', (payload: any) => {
+        if (!payload?.callId) return;
+
+        setAnonymousConversations((current) =>
+          current.map((item) =>
+            item.callId === payload.callId
+              ? {
+                  ...item,
+                  status: payload.response === 'accept' ? 'answered' : 'rejected',
+                  response: payload.response ?? item.response,
+                }
+              : item,
+          ),
+        );
       });
     }
+
+    connectSocket();
+
+    return () => {
+      active = false;
+      socketRef.current?.disconnect?.();
+    };
+  }, [user?.id, user?.role]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadAll();
   };
 
-  // Renderizar item de flujo
-  const renderFlowItem = ({ item }: { item: FlowSummary }) => {
-    const hasUnread = item.unreadMessages > 0;
-    const hasContactInfo = !item.isAnonymous && (item.guestPhone || item.guestCompany);
-    
+  const formatDate = (dateString?: string | null) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleString('es-ES', {
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const openConversation = (conversationId: string) => {
+    router.push({
+      pathname: '/messages/[conversationId]',
+      params: { conversationId },
+    });
+  };
+
+  const openAnonymousConversation = (callId: string) => {
+    router.push({
+      pathname: '/flows/[callId]',
+      params: { callId },
+    });
+  };
+
+  const renderConversation = ({ item }: { item: ConversationItem }) => {
+    const name = item.contact?.name || 'Contacto';
+    const preview = item.lastMessageText || 'Sin mensajes todavia';
+
     return (
-      <TouchableOpacity
-        style={[
-          styles.flowItem,
-          hasUnread && styles.unreadFlowItem
-        ]}
-        onPress={() => loadFlowDetails(item._id)}
-      >
-        <View style={styles.flowHeader}>
-          <View style={styles.flowTitleContainer}>
-            <Text style={styles.guestName}>{item.guestName}</Text>
-            {item.isAnonymous ? (
-              <View style={styles.anonymousBadge}>
-                <Text style={styles.anonymousText}>Anónimo</Text>
-              </View>
-            ) : (
-              <View style={styles.contactBadge}>
-                <Ionicons name="checkmark-circle" size={12} color="#28a745" />
-                <Text style={styles.contactText}>Con datos</Text>
-              </View>
-            )}
-          </View>
-          <Text style={styles.flowTime}>{formatDate(item.lastMessageTime)}</Text>
+      <TouchableOpacity style={styles.card} onPress={() => openConversation(item.conversationId)}>
+        <View style={styles.avatar}>
+          <Ionicons name="chatbubble-ellipses" size={20} color="#7D1522" />
         </View>
-        
-        <Text style={styles.guestEmail} numberOfLines={1}>
-          {item.guestEmail}
-        </Text>
-        
-        {hasContactInfo && (
-          <View style={styles.contactInfo}>
-            {item.guestPhone && (
-              <View style={styles.contactRow}>
-                <Ionicons name="call" size={12} color="#666" />
-                <Text style={styles.contactDetail}>{item.guestPhone}</Text>
-              </View>
-            )}
-            {item.guestCompany && (
-              <View style={styles.contactRow}>
-                <Ionicons name="business" size={12} color="#666" />
-                <Text style={styles.contactDetail}>{item.guestCompany}</Text>
-              </View>
-            )}
+        <View style={styles.info}>
+          <View style={styles.topRow}>
+            <Text style={styles.name}>{name}</Text>
+            <Text style={styles.time}>{formatDate(item.lastMessageAt)}</Text>
           </View>
-        )}
-        
-        <View style={styles.messagePreviewContainer}>
-          <Ionicons 
-            name={item.actionType === 'call' ? 'videocam' : 'chatbubble'} 
-            size={16} 
-            color={item.actionType === 'call' ? '#28a745' : '#007AFF'} 
-            style={styles.messageIcon}
-          />
-          <Text style={styles.messagePreview} numberOfLines={2}>
-            {item.messagePreview}
+          <Text style={styles.email}>{item.contact?.email || ''}</Text>
+          <Text style={styles.preview} numberOfLines={2}>
+            {item.lastMessageSenderName ? `${item.lastMessageSenderName}: ${preview}` : preview}
           </Text>
-        </View>
-        
-        <View style={styles.flowFooter}>
-          <View style={styles.statusContainer}>
-            <View style={[
-              styles.statusBadge,
-              item.status === 'answered' && styles.statusAnswered,
-              item.status === 'pending' && styles.statusPending,
-              item.status === 'timeout' && styles.statusTimeout,
-              item.status === 'rejected' && styles.statusRejected
-            ]}>
-              <Text style={styles.statusText}>
-                {item.status === 'answered' ? 'Respondido' :
-                 item.status === 'pending' ? 'Pendiente' :
-                 item.status === 'timeout' ? 'Expirado' : 'Rechazado'}
-              </Text>
-            </View>
-          </View>
-          
-          {hasUnread && (
-            <View style={styles.unreadBadge}>
-              <Text style={styles.unreadCount}>{item.unreadMessages}</Text>
+          {item.unreadCount > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{item.unreadCount}</Text>
             </View>
           )}
         </View>
@@ -339,202 +330,126 @@ export default function MessagesScreen() {
     );
   };
 
-  // Renderizar mensaje en el modal
-  const renderMessage = ({ item }: { item: FlowMessage }) => (
-    <View style={[
-      styles.messageBubble,
-      item.sender === 'host' ? styles.hostMessage : styles.guestMessage
-    ]}>
-      <View style={styles.messageHeader}>
-        <Text style={[
-          styles.messageSender,
-          item.sender === 'host' ? styles.hostSender : styles.guestSender
-        ]}>
-          {item.sender === 'host' ? 'Tú' : selectedFlow?.guestName || 'Visitante'}
-        </Text>
-        <Text style={styles.messageTime}>
-          {new Date(item.timestamp).toLocaleTimeString('es-ES', {
-            hour: '2-digit',
-            minute: '2-digit'
-          })}
-        </Text>
-      </View>
-      <Text style={styles.messageText}>{item.message}</Text>
-    </View>
-  );
+  const renderAnonymousConversation = ({ item }: { item: AnonymousConversationItem }) => {
+    const preview = item.lastMessageText || (item.actionType === 'call' ? 'Llamada anónima' : 'Sin mensajes todavia');
 
-  // Componente de estadísticas
-  const StatsCard = ({ title, value, color }: any) => (
-    <View style={[styles.statCard, { borderLeftColor: color }]}>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statTitle}>{title}</Text>
-    </View>
-  );
-
-  if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#7D1522" />
-        <Text style={styles.loadingText}>Cargando mensajes...</Text>
-      </View>
+      <TouchableOpacity style={styles.card} onPress={() => openAnonymousConversation(item.callId)}>
+        <View style={styles.avatarAnon}>
+          <Ionicons name={item.actionType === 'call' ? 'videocam' : 'person'} size={20} color="#7D1522" />
+        </View>
+        <View style={styles.info}>
+          <View style={styles.topRow}>
+            <Text style={styles.name}>{item.guestName}</Text>
+            <Text style={styles.time}>{formatDate(item.lastMessageAt)}</Text>
+          </View>
+          <Text style={styles.email}>
+            {item.actionType === 'call' ? 'Llamada anónima' : 'Chat anónimo'}
+          </Text>
+          <Text style={styles.preview} numberOfLines={2}>
+            {item.lastMessageSender === 'host' ? `Tú: ${preview}` : preview}
+          </Text>
+          {item.hostUnreadCount > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{item.hostUnreadCount}</Text>
+            </View>
+          )}
+        </View>
+      </TouchableOpacity>
     );
-  }
+  };
+
+  const activeEmpty = selectedTab === 'contacts'
+    ? {
+        icon: 'chatbubbles-outline',
+        title: 'Todavia no hay chats',
+        text: 'Cuando envíes un mensaje desde Contactos, aparecerá aquí el historial.',
+        action: () => router.push('/contacts'),
+        actionLabel: 'Ver contactos',
+      }
+    : {
+        icon: 'person-outline',
+        title: 'Todavia no hay anonimos',
+        text: 'Cuando entren visitantes por QR, sus chats aparecerán aquí.',
+        action: () => router.push('/qr'),
+        actionLabel: 'Ver QR',
+      };
 
   return (
-    <View style={styles.container}>
-      {/* Header */}
+    <AppView style={styles.container}>
       <View style={styles.header}>
-        <Image 
-          source={{ uri: 'https://res.cloudinary.com/dtxdv136u/image/upload/v1763499836/logo_alb_ged07k.png' }}
-          style={styles.logo}
-          resizeMode="contain"
-        />
-        <Text style={styles.headerTitle}>Mensajes y Flujos</Text>
+        <Text style={styles.title}>Mensajes</Text>
+        <Text style={styles.subtitle}>
+          {selectedTab === 'contacts'
+            ? 'Chats activos con tus contactos'
+            : 'Historial anónimo por QR'}
+        </Text>
+
+        <View style={styles.tabBar}>
+          <TouchableOpacity
+            style={[styles.tab, selectedTab === 'contacts' && styles.tabActive]}
+            onPress={() => setSelectedTab('contacts')}
+          >
+            <Text style={[styles.tabText, selectedTab === 'contacts' && styles.tabTextActive]}>
+              Contactos
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, selectedTab === 'anonymous' && styles.tabActive]}
+            onPress={() => setSelectedTab('anonymous')}
+          >
+            <Text style={[styles.tabText, selectedTab === 'anonymous' && styles.tabTextActive]}>
+              Anonimos
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {/* Estadísticas */}
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false}
-        style={styles.statsContainer}
-      >
-        <StatsCard title="Total flujos" value={stats.total} color="#7D1522" />
-        <StatsCard title="Con mensajes" value={stats.withMessages} color="#28a745" />
-        <StatsCard title="Con contacto" value={stats.withContact} color="#007AFF" />
-        <StatsCard title="Anónimos" value={stats.anonymous} color="#6c757d" />
-      </ScrollView>
-
-      {/* Lista de flujos */}
-      <FlatList
-        data={flows}
-        keyExtractor={(item) => item._id}
-        renderItem={renderFlowItem}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={['#7D1522']}
-          />
-        }
-        contentContainerStyle={styles.listContent}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Ionicons name="chatbubble-outline" size={64} color="#ccc" />
-            <Text style={styles.emptyTitle}>No hay mensajes aún</Text>
-            <Text style={styles.emptyText}>
-              Los visitantes aparecerán aquí cuando envíen mensajes o realicen videollamadas
-            </Text>
-          </View>
-        }
-      />
-
-      {/* Modal de detalles */}
-      <Modal
-        animationType="slide"
-        transparent={false}
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <View style={styles.modalContainer}>
-          {/* Header del modal */}
-          <View style={styles.modalHeader}>
-            <TouchableOpacity 
-              style={styles.modalBackButton}
-              onPress={() => setModalVisible(false)}
-            >
-              <Ionicons name="arrow-back" size={24} color="#3D3D3D" />
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>Conversación</Text>
-            <View style={{ width: 40 }} />
-          </View>
-
-          {detailLoading ? (
-            <View style={styles.detailLoading}>
-              <ActivityIndicator size="large" color="#7D1522" />
-              <Text style={styles.detailLoadingText}>Cargando...</Text>
-            </View>
-          ) : selectedFlow ? (
-            <>
-              {/* Información del visitante */}
-              <View style={styles.guestInfoCard}>
-                <View style={styles.guestInfoHeader}>
-                  <Ionicons 
-                    name="person-circle" 
-                    size={40} 
-                    color={selectedFlow.isAnonymous ? "#6c757d" : "#7D1522"} 
-                  />
-                  <View style={styles.guestInfo}>
-                    <Text style={styles.guestInfoName}>{selectedFlow.guestName}</Text>
-                    <Text style={styles.guestInfoEmail}>{selectedFlow.guestEmail}</Text>
-                    {selectedFlow.guestPhone && (
-                      <Text style={styles.guestInfoPhone}>{selectedFlow.guestPhone}</Text>
-                    )}
-                    {selectedFlow.guestCompany && (
-                      <Text style={styles.guestInfoCompany}>{selectedFlow.guestCompany}</Text>
-                    )}
-                  </View>
-                </View>
-                
-                <View style={styles.flowMeta}>
-                  <View style={styles.metaItem}>
-                    <Ionicons name="time" size={14} color="#666" />
-                    <Text style={styles.metaText}>
-                      {formatDate(selectedFlow.createdAt)}
-                    </Text>
-                  </View>
-                  <View style={styles.metaItem}>
-                    <Ionicons 
-                      name={selectedFlow.actionType === 'call' ? 'videocam' : 'chatbubble'} 
-                      size={14} 
-                      color="#666" 
-                    />
-                    <Text style={styles.metaText}>
-                      {selectedFlow.actionType === 'call' ? 'Videollamada' : 'Mensaje'}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-
-              {/* Lista de mensajes */}
-              <FlatList
-                data={selectedFlow.messages}
-                keyExtractor={(item) => item._id}
-                renderItem={renderMessage}
-                contentContainerStyle={styles.messagesList}
-                inverted={false}
-                style={styles.messagesContainer}
-              />
-
-              {/* Input para enviar mensaje */}
-              <View style={styles.inputContainer}>
-                <TextInput
-                  style={styles.messageInput}
-                  value={newMessage}
-                  onChangeText={setNewMessage}
-                  placeholder="Escribe un mensaje..."
-                  multiline
-                  maxLength={500}
-                />
-                <TouchableOpacity
-                  style={[
-                    styles.sendButton,
-                    (!newMessage.trim() || sendingMessage) && styles.sendButtonDisabled
-                  ]}
-                  onPress={sendMessage}
-                  disabled={!newMessage.trim() || sendingMessage}
-                >
-                  {sendingMessage ? (
-                    <ActivityIndicator size="small" color="white" />
-                  ) : (
-                    <Ionicons name="send" size={20} color="white" />
-                  )}
-                </TouchableOpacity>
-              </View>
-            </>
-          ) : null}
+      {loading ? (
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color="#7D1522" />
+          <Text style={styles.loadingText}>Cargando chats...</Text>
         </View>
-      </Modal>
-    </View>
+      ) : selectedTab === 'contacts' && conversations.length === 0 ? (
+        <View style={styles.center}>
+          <Ionicons name={activeEmpty.icon as any} size={60} color="#ccc" />
+          <Text style={styles.emptyTitle}>{activeEmpty.title}</Text>
+          <Text style={styles.emptyText}>{activeEmpty.text}</Text>
+          <TouchableOpacity style={styles.primaryButton} onPress={activeEmpty.action}>
+            <Text style={styles.primaryButtonText}>{activeEmpty.actionLabel}</Text>
+          </TouchableOpacity>
+        </View>
+      ) : selectedTab === 'anonymous' && anonymousConversations.length === 0 ? (
+        <View style={styles.center}>
+          <Ionicons name={activeEmpty.icon as any} size={60} color="#ccc" />
+          <Text style={styles.emptyTitle}>{activeEmpty.title}</Text>
+          <Text style={styles.emptyText}>{activeEmpty.text}</Text>
+          <TouchableOpacity style={styles.primaryButton} onPress={activeEmpty.action}>
+            <Text style={styles.primaryButtonText}>{activeEmpty.actionLabel}</Text>
+          </TouchableOpacity>
+        </View>
+      ) : selectedTab === 'contacts' ? (
+        <FlatList
+          data={conversations}
+          keyExtractor={(item) => item.conversationId}
+          renderItem={renderConversation}
+          contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 20 }]}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#7D1522']} />
+          }
+        />
+      ) : (
+        <FlatList
+          data={anonymousConversations}
+          keyExtractor={(item) => item.callId}
+          renderItem={renderAnonymousConversation}
+          contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 20 }]}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#7D1522']} />
+          }
+        />
+      )}
+    </AppView>
   );
 }
 
@@ -544,428 +459,160 @@ const styles = StyleSheet.create({
     backgroundColor: '#FAFFFF',
   },
   header: {
-    alignItems: 'center',
-    paddingVertical: 20,
-    backgroundColor: '#FAFFFF',
+    paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#E8E8E8',
-  },
-  logo: {
-    width: 80,
-    height: 80,
-    marginBottom: 10,
-  },
-  headerTitle: {
-    fontSize: 24,
-    color: '#3D3D3D',
-    fontFamily: 'BaiJamjuree-Bold',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
     backgroundColor: '#FAFFFF',
   },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#3D3D3D',
-    fontFamily: 'BaiJamjuree',
-  },
-  statsContainer: {
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    backgroundColor: '#F8F9FA',
-  },
-  statCard: {
-    backgroundColor: 'white',
-    padding: 15,
-    borderRadius: 10,
-    marginRight: 10,
-    minWidth: 120,
-    borderLeftWidth: 4,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#3D3D3D',
+  title: {
+    fontSize: 28,
     fontFamily: 'BaiJamjuree-Bold',
+    color: '#3D3D3D',
   },
-  statTitle: {
-    fontSize: 12,
-    color: '#666',
+  subtitle: {
     marginTop: 4,
+    color: '#666',
     fontFamily: 'BaiJamjuree',
+    fontSize: 14,
   },
-  listContent: {
-    padding: 15,
-    paddingBottom: 30,
+  tabBar: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 14,
   },
-  flowItem: {
-    backgroundColor: 'white',
+  tab: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 42,
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    backgroundColor: '#F3F3F3',
     borderWidth: 1,
     borderColor: '#E8E8E8',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
   },
-  unreadFlowItem: {
-    borderLeftWidth: 4,
-    borderLeftColor: '#7D1522',
-    backgroundColor: '#FFF5F5',
-  },
-  flowHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 8,
-  },
-  flowTitleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    flex: 1,
-  },
-  guestName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#3D3D3D',
-    fontFamily: 'BaiJamjuree-Bold',
-    marginRight: 8,
-  },
-  anonymousBadge: {
-    backgroundColor: '#F8F9FA',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#DEE2E6',
-  },
-  anonymousText: {
-    fontSize: 10,
-    color: '#6c757d',
-    fontFamily: 'BaiJamjuree',
-  },
-  contactBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#E8F5E8',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#D4EDDA',
-  },
-  contactText: {
-    fontSize: 10,
-    color: '#28a745',
-    marginLeft: 4,
-    fontFamily: 'BaiJamjuree',
-  },
-  flowTime: {
-    fontSize: 12,
-    color: '#666',
-    fontFamily: 'BaiJamjuree',
-  },
-  guestEmail: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 8,
-    fontFamily: 'BaiJamjuree',
-  },
-  contactInfo: {
-    marginBottom: 8,
-  },
-  contactRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  contactDetail: {
-    fontSize: 12,
-    color: '#666',
-    marginLeft: 6,
-    fontFamily: 'BaiJamjuree',
-  },
-  messagePreviewContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  messageIcon: {
-    marginRight: 8,
-  },
-  messagePreview: {
-    flex: 1,
-    fontSize: 14,
-    color: '#3D3D3D',
-    fontFamily: 'BaiJamjuree',
-    lineHeight: 20,
-  },
-  flowFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
-    paddingTop: 12,
-  },
-  statusContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    backgroundColor: '#F8F9FA',
-  },
-  statusAnswered: {
-    backgroundColor: '#D4EDDA',
-  },
-  statusPending: {
-    backgroundColor: '#FFF3CD',
-  },
-  statusTimeout: {
-    backgroundColor: '#F8D7DA',
-  },
-  statusRejected: {
-    backgroundColor: '#F8D7DA',
-  },
-  statusText: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    fontFamily: 'BaiJamjuree',
-  },
-  unreadBadge: {
+  tabActive: {
     backgroundColor: '#7D1522',
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    justifyContent: 'center',
-    alignItems: 'center',
+    borderColor: '#7D1522',
   },
-  unreadCount: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: 'bold',
-    fontFamily: 'BaiJamjuree',
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 60,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    color: '#3D3D3D',
-    marginTop: 16,
-    marginBottom: 8,
-    fontFamily: 'BaiJamjuree-Bold',
-  },
-  emptyText: {
-    fontSize: 14,
+  tabText: {
     color: '#666',
-    textAlign: 'center',
-    paddingHorizontal: 40,
-    fontFamily: 'BaiJamjuree',
-    lineHeight: 20,
-  },
-  // Modal styles
-  modalContainer: {
-    flex: 1,
-    backgroundColor: '#FAFFFF',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 15,
-    paddingVertical: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E8E8E8',
-    backgroundColor: 'white',
-  },
-  modalBackButton: {
-    padding: 8,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#3D3D3D',
     fontFamily: 'BaiJamjuree-Bold',
+    fontSize: 13,
   },
-  detailLoading: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+  tabTextActive: {
+    color: '#FAFFFF',
   },
-  detailLoadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#3D3D3D',
-    fontFamily: 'BaiJamjuree',
+  list: {
+    gap: 12,
   },
-  guestInfoCard: {
-    backgroundColor: 'white',
+  card: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'flex-start',
     padding: 16,
-    margin: 16,
-    borderRadius: 12,
+    borderRadius: 14,
+    backgroundColor: 'white',
     borderWidth: 1,
     borderColor: '#E8E8E8',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
   },
-  guestInfoHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-  },
-  guestInfo: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  guestInfoName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#3D3D3D',
-    marginBottom: 2,
-    fontFamily: 'BaiJamjuree-Bold',
-  },
-  guestInfoEmail: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 4,
-    fontFamily: 'BaiJamjuree',
-  },
-  guestInfoPhone: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 4,
-    fontFamily: 'BaiJamjuree',
-  },
-  guestInfoCompany: {
-    fontSize: 14,
-    color: '#666',
-    fontStyle: 'italic',
-    fontFamily: 'BaiJamjuree',
-  },
-  flowMeta: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
-  },
-  metaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  metaText: {
-    fontSize: 12,
-    color: '#666',
-    marginLeft: 6,
-    fontFamily: 'BaiJamjuree',
-  },
-  messagesContainer: {
-    flex: 1,
-    paddingHorizontal: 16,
-  },
-  messagesList: {
-    paddingVertical: 16,
-  },
-  messageBubble: {
-    maxWidth: '80%',
-    padding: 12,
-    borderRadius: 16,
-    marginBottom: 12,
-  },
-  hostMessage: {
-    alignSelf: 'flex-end',
-    backgroundColor: '#7D1522',
-    borderBottomRightRadius: 4,
-  },
-  guestMessage: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#F0F0F0',
-    borderBottomLeftRadius: 4,
-  },
-  messageHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  messageSender: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    fontFamily: 'BaiJamjuree-Bold',
-  },
-  hostSender: {
-    color: '#FFF',
-  },
-  guestSender: {
-    color: '#3D3D3D',
-  },
-  messageTime: {
-    fontSize: 10,
-    color: '#999',
-    fontFamily: 'BaiJamjuree',
-  },
-  messageText: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontFamily: 'BaiJamjuree',
-  },
-  hostMessageText: {
-    color: '#FFF',
-  },
-  guestMessageText: {
-    color: '#3D3D3D',
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#E8E8E8',
-    backgroundColor: 'white',
-  },
-  messageInput: {
-    flex: 1,
-    backgroundColor: '#F8F9FA',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    maxHeight: 100,
-    fontSize: 16,
-    fontFamily: 'BaiJamjuree',
-  },
-  sendButton: {
-    backgroundColor: '#7D1522',
+  avatar: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 12,
+    justifyContent: 'center',
+    backgroundColor: '#F8EDEF',
   },
-  sendButtonDisabled: {
-    backgroundColor: '#CCC',
+  avatarAnon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F8F4F6',
+  },
+  info: {
+    flex: 1,
+  },
+  topRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  name: {
+    flex: 1,
+    fontSize: 16,
+    color: '#3D3D3D',
+    fontFamily: 'BaiJamjuree-Bold',
+  },
+  time: {
+    fontSize: 11,
+    color: '#999',
+    fontFamily: 'BaiJamjuree',
+  },
+  email: {
+    marginTop: 2,
+    color: '#666',
+    fontFamily: 'BaiJamjuree',
+    fontSize: 13,
+  },
+  preview: {
+    marginTop: 10,
+    color: '#444',
+    fontFamily: 'BaiJamjuree',
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  badge: {
+    alignSelf: 'flex-start',
+    marginTop: 10,
+    minWidth: 24,
+    height: 24,
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#7D1522',
+  },
+  badgeText: {
+    color: '#FAFFFF',
+    fontFamily: 'BaiJamjuree-Bold',
+    fontSize: 11,
+  },
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  loadingText: {
+    marginTop: 14,
+    color: '#666',
+    fontFamily: 'BaiJamjuree',
+  },
+  emptyTitle: {
+    marginTop: 16,
+    fontSize: 18,
+    color: '#3D3D3D',
+    fontFamily: 'BaiJamjuree-Bold',
+  },
+  emptyText: {
+    marginTop: 8,
+    textAlign: 'center',
+    color: '#666',
+    fontFamily: 'BaiJamjuree',
+    lineHeight: 20,
+  },
+  primaryButton: {
+    marginTop: 18,
+    backgroundColor: '#7D1522',
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 10,
+  },
+  primaryButtonText: {
+    color: '#FAFFFF',
+    fontFamily: 'BaiJamjuree-Bold',
   },
 });

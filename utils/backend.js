@@ -1,7 +1,17 @@
-const DEFAULT_BACKEND_URL =
-  'https://raymond-uncommensurate-unerringly.ngrok-free.dev';
+function requiredEnv(name, value) {
+  if (!value || String(value).trim() === '') {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
 
-export const BACKEND_URL =
-  process.env.EXPO_PUBLIC_BACKEND_URL || DEFAULT_BACKEND_URL;
+  return value;
+}
 
-export const SOCKET_URL = process.env.EXPO_PUBLIC_SOCKET_URL || BACKEND_URL;
+export const BACKEND_URL = requiredEnv(
+  'EXPO_PUBLIC_BACKEND_URL',
+  process.env.EXPO_PUBLIC_BACKEND_URL,
+);
+
+export const SOCKET_URL = requiredEnv(
+  'EXPO_PUBLIC_SOCKET_URL',
+  process.env.EXPO_PUBLIC_SOCKET_URL,
+);
