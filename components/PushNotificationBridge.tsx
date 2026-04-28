@@ -1,4 +1,3 @@
-
 import React, { useContext, useEffect, useRef } from 'react';
 import { AppState, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -12,7 +11,7 @@ import { hasSeenNotificationId, markNotificationSeen } from '../utils/notificati
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldPlaySound: false,
+    shouldPlaySound: true,
     shouldSetBadge: false,
     shouldShowBanner: true,
     shouldShowList: true,
@@ -20,16 +19,12 @@ Notifications.setNotificationHandler({
 });
 
 const DEVICE_ID_KEY = 'push-device-id';
-const CALL_CATEGORY_ID = 'call_invite';
-const CALL_ACCEPT_ACTION = 'call_accept';
-const CALL_REJECT_ACTION = 'call_reject';
+const DEFAULT_NOTIFICATION_SOUND = 'doorbell.wav';
+const DEFAULT_NOTIFICATION_CHANNEL = 'doorbell';
 
 async function getDeviceId() {
   const existing = await AsyncStorage.getItem(DEVICE_ID_KEY);
-
-  if (existing) {
-    return existing;
-  }
+  if (existing) return existing;
 
   const generated = `device-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
   await AsyncStorage.setItem(DEVICE_ID_KEY, generated);
@@ -40,153 +35,101 @@ function getProjectId() {
   return (
     Constants.expoConfig?.extra?.eas?.projectId ||
     Constants.easConfig?.projectId ||
-    null
+    'c25b3c79-2ed8-4e77-ac3c-211cf738f05e'
   );
 }
 
-function extractNotificationData(item) {
-  return (
-    item?.notification?.request?.content?.data ||
-    item?.request?.content?.data ||
-    {}
-  );
+async function ensureAndroidNotificationChannel() {
+  if (Platform.OS !== 'android') return;
+
+  await Notifications.setNotificationChannelAsync(DEFAULT_NOTIFICATION_CHANNEL, {
+    name: 'Doorbell',
+    importance: Notifications.AndroidImportance.HIGH,
+    sound: DEFAULT_NOTIFICATION_SOUND,
+    vibrationPattern: [0, 300, 200, 300],
+  });
 }
 
-function getNotificationId(data) {
+function extractNotificationData(item: any) {
+  return item?.notification?.request?.content?.data || item?.request?.content?.data || {};
+}
+
+function getNotificationId(data: any) {
   return data?.notificationId || null;
 }
 
-function navigateFromNotification(data) {
+function logNotification(...args: unknown[]) {
+  console.info('[push-bridge]', ...args);
+}
+
+function navigateFromNotification(data: any) {
   const notificationId = getNotificationId(data);
+  const targetConversationId = data?.conversationId || data?.callId || data?.params?.callId || null;
+
+  logNotification('navigate:start', {
+    notificationId,
+    screen: data?.screen || null,
+    conversationId: targetConversationId,
+    params: data?.params || null,
+  });
 
   if (notificationId && hasSeenNotificationId(notificationId)) {
+    logNotification('navigate:skip-seen', { notificationId });
     return;
   }
 
   if (notificationId) {
+    logNotification('navigate:mark-seen', { notificationId });
     markNotificationSeen(notificationId);
   }
 
   const screen = data?.screen;
-  const params = data?.params || {};
-
-  if (screen) {
-    router.push({
-      pathname: screen,
-      params,
-    });
+  if (!screen && !targetConversationId) {
     return;
   }
 
-  if (data?.callId) {
-    router.push({
-      pathname: '/calls/[callId]',
-      params: {
-        callId: data.callId,
-        role: data?.params?.role || 'callee',
-      },
-    });
-  }
-}
-
-async function handleCallInviteAction(data, actionIdentifier) {
-  const callId = data?.callId;
-  const callKind = data?.callKind || 'session';
-
-  if (!callId) {
-    return;
-  }
-
-  const endpoints = {
-    session: {
-      accept: `/calls/sessions/${callId}/accept`,
-      reject: `/calls/sessions/${callId}/reject`,
-    },
-    video: {
-      accept: '/videocall/accept-call',
-      reject: '/videocall/reject-call',
-    },
-  };
-
-  const endpointSet = endpoints[callKind] || endpoints.session;
-
-  if (actionIdentifier === CALL_REJECT_ACTION) {
-    try {
-      await api.post(endpointSet.reject, { callId });
-    } catch (error) {
-      console.log('[push] no se pudo rechazar desde notificacion:', error?.message || error);
-    }
-    return;
-  }
-
-  if (actionIdentifier === CALL_ACCEPT_ACTION) {
-    try {
-      await api.post(endpointSet.accept, { callId });
-    } catch (error) {
-      console.log('[push] no se pudo aceptar desde notificacion:', error?.message || error);
-    }
-  }
+  const pathname = screen || '/flows/[callId]';
+  const params = data?.params || (targetConversationId ? { callId: targetConversationId } : {});
 
   router.push({
-    pathname: '/calls/[callId]',
-    params: {
-      callId,
-      role: data?.params?.role || 'callee',
-    },
+    pathname,
+    params,
+  });
+
+  logNotification('navigate:done', {
+    notificationId,
+    pathname,
+    params,
   });
 }
 
 export default function PushNotificationBridge() {
   const { user } = useContext(AuthContext);
-  const registrationRef = useRef({ userId: null, token: null });
+  const registrationRef = useRef<{ userId: string | null; token: string | null }>({
+    userId: null,
+    token: null,
+  });
   const appStateRef = useRef(AppState.currentState);
   const lastHandledResponseRef = useRef('');
 
   useEffect(() => {
     let active = true;
-    let receivedSubscription = null;
-    let responseSubscription = null;
-    let appStateSubscription = null;
-
-    async function ensureNotificationCategories() {
-      try {
-        await Notifications.setNotificationCategoryAsync(
-          CALL_CATEGORY_ID,
-          [
-            {
-              identifier: CALL_ACCEPT_ACTION,
-              buttonTitle: 'Atender',
-              options: {
-                opensAppToForeground: true,
-              },
-            },
-            {
-              identifier: CALL_REJECT_ACTION,
-              buttonTitle: 'Rechazar',
-              options: {
-                isDestructive: true,
-                opensAppToForeground: false,
-              },
-            },
-          ],
-        );
-      } catch (error) {
-        console.log('[push] no se pudo registrar la categoria de llamadas:', error?.message || error);
-      }
-    }
+    let receivedSubscription: Notifications.Subscription | null = null;
+    let responseSubscription: Notifications.Subscription | null = null;
+    let appStateSubscription: any = null;
 
     async function registerPushToken() {
       try {
-        if (!Device.isDevice) {
-          console.log('[push] registro omitido: no es un dispositivo fisico');
-          return;
-        }
+        if (!Device.isDevice) return;
 
         const projectId = getProjectId();
-        if (!projectId) {
-          console.log('[push] registro omitido: falta projectId de EAS');
-          return;
-        }
+        if (!projectId) return;
+
+        logNotification('register:start', {
+          userId: user?.id || null,
+          projectId,
+          platform: Platform.OS,
+        });
 
         const { status: existingStatus } = await Notifications.getPermissionsAsync();
         let finalStatus = existingStatus;
@@ -196,19 +139,12 @@ export default function PushNotificationBridge() {
           finalStatus = status;
         }
 
-        if (finalStatus !== 'granted') {
-          console.log('[push] permisos de notificacion denegados');
-          return;
-        }
+        if (finalStatus !== 'granted') return;
 
         const deviceId = await getDeviceId();
         const tokenResponse = await Notifications.getExpoPushTokenAsync({ projectId });
         const expoPushToken = tokenResponse?.data;
-
-        if (!expoPushToken || !active) {
-          console.log('[push] no se obtuvo expoPushToken');
-          return;
-        }
+        if (!expoPushToken || !active) return;
 
         if (
           registrationRef.current.token === expoPushToken &&
@@ -236,53 +172,74 @@ export default function PushNotificationBridge() {
           token: expoPushToken,
         };
 
-        console.log('[push] token registrado o actualizado', {
+        logNotification('register:done', {
           userId: user?.id || null,
-          deviceId,
-          platform: Platform.OS,
+          tokenPrefix: expoPushToken.slice(0, 18),
         });
-      } catch (error) {
-        console.log('[push] no se pudo registrar el token:', error?.message || error);
+      } catch {
+        // Keep the bridge non-blocking.
       }
     }
 
-    async function handleResponse(response) {
+    async function handleResponse(response: any) {
       const actionIdentifier = response?.actionIdentifier;
       const data = extractNotificationData(response);
       const notificationId = getNotificationId(data);
       const responseKey = `${notificationId || 'no-id'}:${actionIdentifier || 'default'}`;
 
+      logNotification('response:received', {
+        responseKey,
+        actionIdentifier: actionIdentifier || null,
+        notificationId,
+        screen: data?.screen || null,
+        conversationId: data?.conversationId || data?.callId || data?.params?.callId || null,
+        params: data?.params || null,
+      });
+
       if (responseKey === lastHandledResponseRef.current) {
+        logNotification('response:skip-duplicate', { responseKey });
         return;
       }
 
       lastHandledResponseRef.current = responseKey;
 
       if (notificationId && hasSeenNotificationId(notificationId)) {
+        logNotification('response:skip-seen', { notificationId, responseKey });
         return;
       }
 
-      if (notificationId) {
-        markNotificationSeen(notificationId);
-      }
-
-      if (data?.type === 'call_invite' || data?.type === 'video_call_invite' || data?.callId) {
-        if (actionIdentifier === CALL_REJECT_ACTION || actionIdentifier === CALL_ACCEPT_ACTION) {
-          await handleCallInviteAction(data, actionIdentifier);
-          return;
-        }
-      }
-
       navigateFromNotification(data);
+
+      try {
+        await Notifications.clearLastNotificationResponseAsync();
+        logNotification('response:cleared-last-response', { responseKey });
+      } catch {
+        // Ignore clearing issues; navigation already happened.
+        logNotification('response:clear-failed', { responseKey });
+      }
     }
 
     async function bootstrap() {
-      await ensureNotificationCategories();
+      logNotification('bootstrap:start', { userId: user?.id || null, platform: Platform.OS });
+      await ensureAndroidNotificationChannel();
       await registerPushToken();
 
       const lastResponse = await Notifications.getLastNotificationResponseAsync();
+      logNotification('bootstrap:last-response', {
+        hasLastResponse: Boolean(lastResponse),
+        notificationId: lastResponse ? getNotificationId(extractNotificationData(lastResponse)) : null,
+        screen: lastResponse ? extractNotificationData(lastResponse)?.screen || null : null,
+      });
       if (lastResponse) {
         await handleResponse(lastResponse);
+      }
+
+      try {
+        await Notifications.clearLastNotificationResponseAsync();
+        logNotification('bootstrap:cleared-last-response');
+      } catch {
+        // Ignore clearing issues on bootstrap.
+        logNotification('bootstrap:clear-failed');
       }
     }
 
@@ -299,20 +256,26 @@ export default function PushNotificationBridge() {
 
     receivedSubscription = Notifications.addNotificationReceivedListener((notification) => {
       const data = extractNotificationData(notification);
+      const notificationId = getNotificationId(data);
+      logNotification('received', {
+        notificationId,
+        screen: data?.screen || null,
+        conversationId: data?.conversationId || data?.callId || data?.params?.callId || null,
+      });
 
-      if (data?.notificationId && hasSeenNotificationId(data.notificationId)) {
+      if (notificationId && hasSeenNotificationId(notificationId)) {
+        logNotification('received:skip-seen', { notificationId });
         return;
       }
 
-      if (data?.notificationId) {
-        markNotificationSeen(data.notificationId);
-      }
+      logNotification('received:accepted', {
+        notificationId,
+      });
     });
 
     responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
-      handleResponse(response).catch((error) => {
-        console.log('[push] no se pudo manejar la respuesta de la notificacion:', error?.message || error);
-      });
+      logNotification('response-listener-fired');
+      handleResponse(response).catch(() => {});
     });
 
     return () => {

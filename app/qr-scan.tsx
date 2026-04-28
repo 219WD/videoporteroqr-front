@@ -17,6 +17,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AuthContext } from '../context/AuthContext';
 import { api } from '../utils/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 function extractQrCode(rawValue: string) {
   const trimmed = rawValue.trim();
@@ -38,7 +39,7 @@ function extractQrCode(rawValue: string) {
 }
 
 export default function QrScanScreen() {
-  const { refreshUser } = useContext(AuthContext);
+  const { user } = useContext(AuthContext);
   const insets = useSafeAreaInsets();
   const [permission, requestPermission] = useCameraPermissions();
   const [scanning, setScanning] = useState(false);
@@ -103,33 +104,40 @@ export default function QrScanScreen() {
     const code = extractQrCode(data);
     if (!code) {
       scanLockRef.current = false;
-      Alert.alert('QR invalido', 'No pudimos leer el codigo del QR.');
+      Alert.alert('QR inválido', 'No pudimos leer el código del QR.');
       return;
     }
 
     try {
       setScanning(true);
-      const response = await api.post('/auth/join-host-by-qr', { code });
-      const host = response.data?.host;
 
-      await refreshUser();
+      const response = await api.post('/flows/start', {
+        qrCode: code,
+        actionType: 'message',
+        guestName: user?.name || 'Visitante',
+        guestFullName: user?.name || 'Visitante',
+        isAnonymous: true,
+      });
 
-      if (host?.id) {
-        router.replace({
-          pathname: '/(tabs)/qr',
-          params: {
-            linkedUserId: String(host.id),
-            linkedUserName: host.name || 'Usuario vinculado',
-            linkedUserEmail: host.email || '',
-            linkedUserQrCode: host.qrCode || '',
-          },
-        });
-      } else {
-        router.replace('/(tabs)/qr');
+      const conversationId = response.data?.callId;
+      const guestToken = response.data?.guestToken;
+
+      if (!conversationId || !guestToken) {
+        throw new Error('No se pudo abrir el chat');
       }
+
+      await AsyncStorage.setItem('guestToken', String(guestToken));
+
+      router.replace({
+        pathname: `/flows/${encodeURIComponent(String(conversationId))}`,
+        params: {
+          role: 'guest',
+          guestToken: String(guestToken),
+        },
+      });
     } catch (error: any) {
-      console.error('Error vinculando QR:', error);
-      Alert.alert('Error', error.response?.data?.error || 'No se pudo vincular el QR.');
+      console.error('Error iniciando chat anónimo desde QR:', error);
+      Alert.alert('Error', error.response?.data?.error || 'No se pudo iniciar el chat anónimo.');
     } finally {
       setScanning(false);
       scanLockRef.current = false;
@@ -137,7 +145,7 @@ export default function QrScanScreen() {
   };
 
   const openSettingsHint = () => {
-    Alert.alert('Permiso de camara', 'Activa el permiso de camara para poder escanear un QR.');
+    Alert.alert('Permiso de cámara', 'Activa el permiso de cámara para poder escanear un QR.');
   };
 
   return (
@@ -152,7 +160,7 @@ export default function QrScanScreen() {
         </TouchableOpacity>
         <View style={styles.headerText}>
           <Text style={styles.kicker}>Scanner</Text>
-          <Text style={styles.title}>Apunta al QR</Text>
+          <Text style={styles.title}>Apuntá al QR</Text>
         </View>
       </View>
 
@@ -189,9 +197,9 @@ export default function QrScanScreen() {
             <View style={styles.permissionIcon}>
               <Ionicons name="camera-outline" size={28} color="#FAFFFF" />
             </View>
-            <Text style={styles.permissionTitle}>Necesitamos la camara</Text>
+            <Text style={styles.permissionTitle}>Necesitamos la cámara</Text>
             <Text style={styles.permissionText}>
-              El scanner usa la camara para leer el QR del otro usuario.
+              El scanner usa la cámara para leer el QR y abrir el chat anónimo.
             </Text>
 
             <TouchableOpacity
@@ -208,12 +216,12 @@ export default function QrScanScreen() {
               {loadingPermission ? (
                 <ActivityIndicator size="small" color="#FAFFFF" />
               ) : (
-                <Text style={styles.permissionButtonText}>Permitir camara</Text>
+                <Text style={styles.permissionButtonText}>Permitir cámara</Text>
               )}
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.permissionSecondaryButton} onPress={openSettingsHint}>
-              <Text style={styles.permissionSecondaryText}>Ya lo permiti</Text>
+              <Text style={styles.permissionSecondaryText}>Ya lo permití</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -221,7 +229,7 @@ export default function QrScanScreen() {
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + 18 }]}>
         <Text style={styles.footerText}>
-          La linea roja indica el barrido del scanner. En cuanto detecte un QR valido, vuelve a la pantalla anterior.
+          En cuanto detecte un QR válido, vas a entrar directo al chat anónimo.
         </Text>
         {scanning ? (
           <View style={styles.scanningRow}>

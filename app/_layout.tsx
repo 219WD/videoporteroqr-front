@@ -11,7 +11,6 @@ import { View } from "react-native";
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from "../context/AuthContext";
 import { AuthContext } from "../context/AuthContext";
-import CallSignalListener from "../components/CallSignalListener";
 import PushNotificationBridge from "../components/PushNotificationBridge";
 
 SplashScreen.preventAutoHideAsync().catch(() => {
@@ -47,9 +46,8 @@ function AppNavigator({ appReady }: { appReady: boolean }) {
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="flows" options={{ headerShown: false, presentation: 'modal' }} />
-        <Stack.Screen name="qr-scan" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
-        <Stack.Screen name="calls" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
+        <Stack.Screen name="flows/[callId]" options={{ headerShown: false, presentation: 'modal' }} />
+        <Stack.Screen name="qr-scan" options={{ headerShown: false, presentation: 'modal' }} />
       </Stack>
   );
 }
@@ -69,7 +67,6 @@ export default function RootLayout() {
       <StatusBar style="dark" backgroundColor="#FAFFFF" translucent={false} />
       <AuthProvider>
         <PushNotificationBridge />
-        <CallSignalListener />
         <AppNavigator appReady={fontsLoaded} />
       </AuthProvider>
     </SafeAreaProvider>

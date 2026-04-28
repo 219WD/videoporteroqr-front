@@ -1,10 +1,10 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import React, { useContext } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AuthContext } from '../../context/AuthContext';
 import AppView from '../../components/AppView';
+import { AuthContext } from '../../context/AuthContext';
 
 type QuickActionProps = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -51,22 +51,35 @@ export default function HomeScreen() {
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 20 }]}
       >
         <View style={styles.hero}>
-          <Text style={styles.kicker}>Inicio</Text>
-          <Text style={styles.title}>Panel principal</Text>
-          <Text style={styles.subtitle}>
-            {user?.name
-              ? `Hola ${user.name}, desde aquí gestionás tu cuenta y tus contactos.`
-              : 'Gestioná tu cuenta desde un solo lugar.'}
-          </Text>
+          <View style={styles.heroCopy}>
+            <Text style={styles.kicker}>Inicio</Text>
+            <Text style={styles.title}>Panel principal</Text>
+            <Text style={styles.subtitle}>
+              {user?.name
+                ? `Hola ${user.name}, desde aquí gestionas tu cuenta y tus mensajes anónimos.`
+                : 'Gestiona tu cuenta desde un solo lugar.'}
+            </Text>
+          </View>
+
+          <View style={styles.heroBadge}>
+            <Image
+              source={require('../../assets/images/icon.png')}
+              style={styles.heroImage}
+              resizeMode="contain"
+            />
+          </View>
         </View>
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Accesos rápidos</Text>
           <View style={styles.grid}>
-            <QuickAction icon="people-outline" label="Contactos" onPress={() => router.push('/contacts')} />
-            <QuickAction icon="time-outline" label="Historial" onPress={() => router.push('/history')} />
-            <QuickAction icon="chatbubble-ellipses-outline" label="Mensajes" onPress={() => router.push('/messages')} />
-            <QuickAction icon="qr-code-outline" label="Mi QR" onPress={() => router.push('/qr')} accent />
+            <QuickAction
+              icon="chatbubble-ellipses-outline"
+              label="Mensajes"
+              onPress={() => router.push('/messages')}
+              accent
+            />
+            <QuickAction icon="qr-code-outline" label="Mi QR" onPress={() => router.push('/qr')} />
           </View>
         </View>
 
@@ -79,9 +92,7 @@ export default function HomeScreen() {
             </View>
             <View style={styles.summaryItem}>
               <Text style={styles.summaryLabel}>Rol</Text>
-              <Text style={styles.summaryValue}>
-                {user?.role === 'admin' ? 'Administrador' : 'Anfitrión'}
-              </Text>
+              <Text style={styles.summaryValue}>{user?.role === 'admin' ? 'Administrador' : 'Anfitrión'}</Text>
             </View>
           </View>
 
@@ -107,6 +118,28 @@ const styles = StyleSheet.create({
     padding: 20,
     borderRadius: 20,
     backgroundColor: '#7D1522',
+    overflow: 'hidden',
+    minHeight: 180,
+  },
+  heroCopy: {
+    paddingRight: 104,
+  },
+  heroBadge: {
+    position: 'absolute',
+    right: 16,
+    top: 16,
+    width: 84,
+    height: 84,
+    borderRadius: 22,
+    backgroundColor: 'rgba(250,255,255,0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(250,255,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroImage: {
+    width: 64,
+    height: 64,
   },
   kicker: {
     color: 'rgba(255,255,255,0.8)',

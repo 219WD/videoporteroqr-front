@@ -16,30 +16,30 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import io from 'socket.io-client';
 import { api } from '../../utils/api';
 import { SOCKET_URL } from '../../utils/backend';
 
-type FlowMessage = {
+type ConversationMessage = {
+  id?: string;
   sender: 'host' | 'guest';
   message: string;
   timestamp: string;
   guestName?: string;
 };
 
-type FlowDetail = {
+type ConversationDetail = {
   _id: string;
   guestName: string;
   hostId: string;
   status: string;
   response?: string | null;
-  actionType: 'message' | 'call' | 'direct_call';
-  callType?: string;
   messageContent?: string | null;
   isAnonymous?: boolean;
   createdAt?: string;
   answeredAt?: string | null;
-  messages?: FlowMessage[];
+  messages?: ConversationMessage[];
   timeoutIn?: number;
 };
 
@@ -58,16 +58,31 @@ function formatClock(dateString?: string | null) {
   });
 }
 
-export default function AnonymousFlowScreen() {
+export default function AnonymousConversationScreen() {
   const { user } = useContext(AuthContext);
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
-  const callId = useMemo(() => {
+  const conversationId = useMemo(() => {
     const value = params.callId;
     return Array.isArray(value) ? value[0] : value;
   }, [params.callId]);
+  const conversationRole = useMemo(() => {
+    const value = params.role;
+    return Array.isArray(value) ? value[0] : value;
+  }, [params.role]);
+  const guestToken = useMemo(() => {
+    const value = params.guestToken;
+    return Array.isArray(value) ? value[0] : value;
+  }, [params.guestToken]);
+  const isGuestMode = conversationRole === 'guest';
 
-  const [flow, setFlow] = useState<FlowDetail | null>(null);
-  const [messages, setMessages] = useState<FlowMessage[]>([]);
+  useEffect(() => {
+    if (!guestToken) return;
+    AsyncStorage.setItem('guestToken', String(guestToken)).catch(() => {});
+  }, [guestToken]);
+
+  const [conversation, setConversation] = useState<ConversationDetail | null>(null);
+  const [messages, setMessages] = useState<ConversationMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [message, setMessage] = useState('');
@@ -75,6 +90,7 @@ export default function AnonymousFlowScreen() {
   const [timeLeftMs, setTimeLeftMs] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
   const socketRef = useRef<any>(null);
+  const log = (...args: unknown[]) => console.info('[mobile-chat]', ...args);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -84,39 +100,66 @@ export default function AnonymousFlowScreen() {
     return () => clearInterval(timer);
   }, []);
 
-  const loadFlow = useCallback(async () => {
-    if (!callId) return;
+  const loadConversation = useCallback(async () => {
+    if (!conversationId) return;
 
     try {
       setLoading(true);
-      const statusResponse = await api.get(`/flows/status/${encodeURIComponent(callId)}`);
-      const nextFlow = statusResponse.data?.call || null;
-      setFlow(nextFlow);
+      log('loadConversation:start', {
+        conversationId,
+        isGuestMode,
+        hasGuestToken: Boolean(guestToken),
+      });
+      const statusResponse = await api.get(`/flows/status/${encodeURIComponent(conversationId)}`);
+      const nextConversation = statusResponse.data?.call || null;
+      log('loadConversation:status-ok', {
+        conversationId,
+        statusCode: statusResponse.status,
+        guestName: nextConversation?.guestName || null,
+        status: nextConversation?.status || null,
+        timeoutIn: statusResponse.data?.timeoutIn || 0,
+      });
+      setConversation(nextConversation);
       setTimeLeftMs(Number(statusResponse.data?.timeoutIn || 0));
 
-      const messagesResponse = await api.get(`/flows/${encodeURIComponent(callId)}/messages`);
+      const messagesResponse = await api.get(`/flows/${encodeURIComponent(conversationId)}/messages`);
+      log('loadConversation:messages-ok', {
+        conversationId,
+        statusCode: messagesResponse.status,
+        messageCount: Array.isArray(messagesResponse.data?.messages) ? messagesResponse.data.messages.length : 0,
+      });
       setMessages(messagesResponse.data?.messages || []);
       setError(null);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'No se pudo cargar el flujo');
+      log('loadConversation:error', {
+        conversationId,
+        status: err.response?.status || null,
+        error: err.response?.data?.error || err.message || String(err),
+      });
+      setError(err.response?.data?.error || 'No se pudo cargar el chat');
     } finally {
       setLoading(false);
     }
-  }, [callId]);
+  }, [conversationId, guestToken, isGuestMode]);
 
   useFocusEffect(
     useCallback(() => {
-      loadFlow();
-    }, [loadFlow]),
+      loadConversation();
+    }, [loadConversation]),
   );
 
   useEffect(() => {
     let active = true;
 
     async function connectSocket() {
-      if (!user?.id || !callId) return;
+      if (!conversationId) return;
 
-      const token = await AsyncStorage.getItem('token');
+      const token = guestToken || (await AsyncStorage.getItem('token'));
+      log('socket:setup', {
+        conversationId,
+        hasToken: Boolean(token),
+        isGuestMode,
+      });
       if (!active || !token) return;
 
       const socket = io(SOCKET_URL, {
@@ -129,21 +172,30 @@ export default function AnonymousFlowScreen() {
       socketRef.current = socket;
 
       socket.on('connect', () => {
+        log('socket:connect', { conversationId, socketId: socket.id });
         socket.emit('user-connected', {
-          userId: user.id,
-          userType: user.role,
+          userId: user?.id,
+          userType: user?.role,
         });
+        socket.emit('join-flow-room', { callId: conversationId, token });
       });
 
       socket.on('new-flow-message', (payload: any) => {
-        if (!payload?.callId || payload.callId !== callId || !payload?.message) return;
+        log('socket:new-flow-message', {
+          conversationId,
+          payloadCallId: payload?.callId || null,
+          payloadId: payload?.id || null,
+          sender: payload?.sender || null,
+        });
+        if (!payload?.callId || payload.callId !== conversationId || !payload?.message) return;
 
         setMessages((current) => {
           const exists = current.some(
             (item) =>
-              item.timestamp === payload.timestamp &&
-              item.sender === payload.sender &&
-              item.message === payload.message,
+              (item.id && payload.id ? item.id === payload.id : false) ||
+              (item.timestamp === payload.timestamp &&
+                item.sender === payload.sender &&
+                item.message === payload.message),
           );
 
           if (exists) return current;
@@ -151,6 +203,7 @@ export default function AnonymousFlowScreen() {
           return [
             ...current,
             {
+              id: payload.id,
               sender: payload.sender,
               message: payload.message,
               timestamp: payload.timestamp,
@@ -161,8 +214,13 @@ export default function AnonymousFlowScreen() {
       });
 
       socket.on('flow-response', (payload: any) => {
-        if (payload?.callId !== callId) return;
-        setFlow((current) =>
+        log('socket:flow-response', {
+          conversationId,
+          payloadCallId: payload?.callId || null,
+          response: payload?.response || null,
+        });
+        if (payload?.callId !== conversationId) return;
+        setConversation((current) =>
           current
             ? {
                 ...current,
@@ -172,14 +230,14 @@ export default function AnonymousFlowScreen() {
             : current,
         );
 
-        if (payload.response === 'reject') {
+        if (!isGuestMode && payload.response === 'reject') {
           setError('La otra persona rechazó la conversación');
         }
       });
 
       socket.on('flow-host-accepted', (payload: any) => {
-        if (payload?.callId !== callId) return;
-        setFlow((current) =>
+        if (payload?.callId !== conversationId) return;
+        setConversation((current) =>
           current
             ? {
                 ...current,
@@ -197,26 +255,40 @@ export default function AnonymousFlowScreen() {
       active = false;
       socketRef.current?.disconnect?.();
     };
-  }, [callId, user?.id, user?.role]);
+  }, [conversationId, guestToken, isGuestMode, user?.id, user?.role]);
 
   const expired = timeLeftMs <= 0;
-  const actionType = flow?.actionType || 'message';
 
   async function sendMessage() {
     const text = message.trim();
-    if (!text || expired || !callId) return;
+    if (!text || expired || !conversationId) return;
 
     try {
       setSending(true);
-      const response = await api.post(`/flows/${encodeURIComponent(callId)}/send-message`, {
+      log('sendMessage:start', {
+        conversationId,
+        length: text.length,
+        expired,
+      });
+      const response = await api.post(`/flows/${encodeURIComponent(conversationId)}/send-message`, {
         message: text,
-        sender: 'host',
+        sender: isGuestMode ? 'guest' : 'host',
+      });
+      log('sendMessage:ok', {
+        conversationId,
+        statusCode: response.status,
+        messageCount: Array.isArray(response.data?.messages) ? response.data.messages.length : null,
       });
 
       setMessages(response.data?.messages || []);
       setMessage('');
       setError(null);
     } catch (err: any) {
+      log('sendMessage:error', {
+        conversationId,
+        status: err.response?.status || null,
+        error: err.response?.data?.error || err.message || String(err),
+      });
       setError(err.response?.data?.error || 'No se pudo enviar el mensaje');
     } finally {
       setSending(false);
@@ -224,16 +296,16 @@ export default function AnonymousFlowScreen() {
   }
 
   async function respond(response: 'accept' | 'reject') {
-    if (!callId) return;
+    if (!conversationId) return;
 
     try {
       setReplying(true);
-      const result = await api.post('/flows/respond', {
-        callId,
+      await api.post('/flows/respond', {
+        callId: conversationId,
         response,
       });
 
-      setFlow((current) =>
+      setConversation((current) =>
         current
           ? {
               ...current,
@@ -243,19 +315,7 @@ export default function AnonymousFlowScreen() {
           : current,
       );
 
-      if (response === 'reject') {
-        setError('Conversación rechazada');
-      } else if (result.data?.call?.actionType === 'call') {
-        setError(null);
-        router.push({
-          pathname: '/calls/[callId]',
-          params: {
-            callId,
-            role: 'host',
-            anonymous: '1',
-          },
-        });
-      }
+      setError(response === 'reject' ? 'Conversación rechazada' : null);
     } catch (err: any) {
       setError(err.response?.data?.error || 'No se pudo responder');
     } finally {
@@ -263,11 +323,11 @@ export default function AnonymousFlowScreen() {
     }
   }
 
-  const visibleMessages = useMemo(() => messages, [messages]);
+  const conversationMessages = useMemo(() => messages, [messages]);
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { paddingBottom: insets.bottom }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={styles.header}>
@@ -275,14 +335,14 @@ export default function AnonymousFlowScreen() {
           <Ionicons name="chevron-back" size={26} color="#3D3D3D" />
         </TouchableOpacity>
         <View style={styles.headerText}>
-          <Text style={styles.headerTitle}>{flow?.guestName || 'Conversación anónima'}</Text>
+          <Text style={styles.headerTitle}>{conversation?.guestName || 'Conversación anónima'}</Text>
           <Text style={styles.headerSubtitle}>
             {expired ? 'La conversación terminó' : `Restan ${formatTime(timeLeftMs)}`}
           </Text>
         </View>
         <View style={styles.headerActions}>
           <View style={styles.headerBadge}>
-            <Text style={styles.headerBadgeText}>{actionType === 'call' ? 'Videollamada' : 'Chat'}</Text>
+            <Text style={styles.headerBadgeText}>{isGuestMode ? 'Guest' : 'Host'}</Text>
           </View>
         </View>
       </View>
@@ -295,21 +355,23 @@ export default function AnonymousFlowScreen() {
       ) : (
         <>
           <View style={styles.statusCard}>
-            <Text style={styles.statusTitle}>{actionType === 'call' ? 'Videollamada anónima' : 'Chat anónimo'}</Text>
+            <Text style={styles.statusTitle}>Chat anónimo</Text>
             <Text style={styles.statusText}>
-              {flow?.messageContent
-                ? flow.messageContent
-                : flow?.response === 'accept'
-                  ? 'Aceptado'
-                  : flow?.response === 'reject'
-                    ? 'Rechazado'
-                    : 'Esperando respuesta'}
+              {isGuestMode
+                ? 'Estás chateando de forma anónima.'
+                : conversation?.messageContent
+                  ? conversation.messageContent
+                  : conversation?.response === 'accept'
+                    ? 'Aceptado'
+                    : conversation?.response === 'reject'
+                      ? 'Rechazado'
+                      : 'Esperando respuesta'}
             </Text>
             <Text style={styles.statusMeta}>
-              {flow?.createdAt ? `Iniciado ${formatClock(flow.createdAt)}` : ''}
-              {flow?.answeredAt ? `  ·  Respondido ${formatClock(flow.answeredAt)}` : ''}
+              {conversation?.createdAt ? `Iniciado ${formatClock(conversation.createdAt)}` : ''}
+              {conversation?.answeredAt ? `  ·  Respondido ${formatClock(conversation.answeredAt)}` : ''}
             </Text>
-            {actionType === 'call' && flow?.status === 'pending' ? (
+            {!isGuestMode && conversation?.status === 'pending' ? (
               <View style={styles.actionsRow}>
                 <TouchableOpacity
                   style={[styles.actionButton, styles.rejectButton]}
@@ -323,19 +385,19 @@ export default function AnonymousFlowScreen() {
                   onPress={() => respond('accept')}
                   disabled={replying}
                 >
-              <Text style={styles.acceptButtonText}>{replying ? '...' : 'Aceptar'}</Text>
+                  <Text style={styles.acceptButtonText}>{replying ? '...' : 'Aceptar'}</Text>
                 </TouchableOpacity>
               </View>
             ) : null}
           </View>
 
-          <FlatList
+            <FlatList
             style={styles.messagesList}
             inverted
-            data={[...visibleMessages].reverse()}
-            keyExtractor={(_, index) => `${index}`}
+            data={[...conversationMessages].reverse()}
+            keyExtractor={(item, index) => item.id || `${item.sender}:${item.timestamp}:${index}`}
             renderItem={({ item }) => {
-              const mine = item.sender === 'host';
+              const mine = item.sender === (isGuestMode ? 'guest' : 'host');
 
               return (
                 <View style={[styles.messageRow, mine ? styles.rowEnd : styles.rowStart]}>
@@ -348,20 +410,20 @@ export default function AnonymousFlowScreen() {
                 </View>
               );
             }}
-            contentContainerStyle={styles.list}
+            contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 64 }]}
             ListEmptyComponent={
               <View style={styles.emptyChat}>
                 <Ionicons name="chatbubble-outline" size={48} color="#ccc" />
                 <Text style={styles.emptyChatTitle}>Todavía no hay mensajes</Text>
-                <Text style={styles.emptyChatText}>Respondé cuando quieras. Todo queda guardado.</Text>
+                <Text style={styles.emptyChatText}>Escribí un mensaje para empezar.</Text>
               </View>
             }
           />
 
-          <View style={styles.composer}>
+          <View style={[styles.composer, { paddingBottom: 8 }]}>
             <TextInput
               style={styles.input}
-              placeholder={expired ? 'La conversación terminó' : 'Escribí una respuesta...'}
+              placeholder={expired ? 'La conversación terminó' : 'Escribí un mensaje...'}
               placeholderTextColor="#999"
               value={message}
               onChangeText={setMessage}
@@ -383,7 +445,11 @@ export default function AnonymousFlowScreen() {
         </>
       )}
 
-      {error ? <View style={styles.toast}><Text style={styles.toastText}>{error}</Text></View> : null}
+      {error ? (
+        <View style={styles.toast}>
+          <Text style={styles.toastText}>{error}</Text>
+        </View>
+      ) : null}
     </KeyboardAvoidingView>
   );
 }

@@ -14,8 +14,12 @@ api.interceptors.request.use(
     try {
       // ✅ Usar AsyncStorage en lugar de localStorage
       const token = await AsyncStorage.getItem('token');
+      const guestToken = await AsyncStorage.getItem('guestToken');
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
+      }
+      if (guestToken) {
+        config.headers['x-guest-token'] = guestToken;
       }
     } catch (error) {
       console.log('Error getting token from storage:', error);

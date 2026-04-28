@@ -10,7 +10,7 @@ jobs:
     env:
       EXPO_PUBLIC_BACKEND_URL: ${{ vars.EXPO_PUBLIC_BACKEND_URL }}
       EXPO_PUBLIC_SOCKET_URL: ${{ vars.EXPO_PUBLIC_SOCKET_URL }}
-      GOOGLE_SERVICES_JSON_CONTENT: ${{ vars.GOOGLE_SERVICES_JSON_CONTENT }}
+      EXPO_PUBLIC_LOG_ENABLED: ${{ vars.EXPO_PUBLIC_LOG_ENABLED }}
       EXPO_TOKEN: ${{ vars.EXPO_TOKEN }}
       EAS_LOCAL_BUILD_ARTIFACTS_DIR: ${{ github.workspace }}/artifacts
 
@@ -41,7 +41,7 @@ jobs:
         run: |
           test -n "$EXPO_PUBLIC_BACKEND_URL"
           test -n "$EXPO_PUBLIC_SOCKET_URL"
-          test -n "$GOOGLE_SERVICES_JSON_CONTENT"
+          test -n "$EXPO_PUBLIC_LOG_ENABLED"
           test -n "$EXPO_TOKEN"
 
       - name: Generate the native Android project

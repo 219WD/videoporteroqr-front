@@ -1,21 +1,28 @@
-name: Android local build - preview
+name: Android local build - manual release
 
 on:
-  release:
-    types: [published]
+  workflow_dispatch:
+    inputs:
+      build_profile:
+        description: "Android build profile"
+        required: true
+        type: choice
+        default: preview
+        options:
+          - preview
+          - production
 
 jobs:
   build-apk:
-    if: github.event.release.prerelease == true
-    environment: preview
+    environment: ${{ inputs.build_profile }}
     runs-on: ubuntu-latest
     env:
-      RELEASE_TAG: ${{ github.event.release.tag_name }}
       EXPO_PUBLIC_BACKEND_URL: ${{ vars.EXPO_PUBLIC_BACKEND_URL }}
       EXPO_PUBLIC_SOCKET_URL: ${{ vars.EXPO_PUBLIC_SOCKET_URL }}
-      GOOGLE_SERVICES_JSON_CONTENT: ${{ vars.GOOGLE_SERVICES_JSON_CONTENT }}
+      EXPO_PUBLIC_LOG_ENABLED: ${{ vars.EXPO_PUBLIC_LOG_ENABLED }}
       EXPO_TOKEN: ${{ vars.EXPO_TOKEN }}
       EAS_LOCAL_BUILD_ARTIFACTS_DIR: ${{ github.workspace }}/artifacts
+      BUILD_PROFILE: ${{ inputs.build_profile }}
 
     steps:
       - name: Checkout code
@@ -44,17 +51,8 @@ jobs:
         run: |
           test -n "$EXPO_PUBLIC_BACKEND_URL"
           test -n "$EXPO_PUBLIC_SOCKET_URL"
-          test -n "$GOOGLE_SERVICES_JSON_CONTENT"
+          test -n "$EXPO_PUBLIC_LOG_ENABLED"
           test -n "$EXPO_TOKEN"
-
-      - name: Validate preview release tag
-        shell: bash
-        run: |
-          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-(rc|beta|preview)\.[0-9]+$ ]]; then
-            echo "Invalid preview tag: $RELEASE_TAG"
-            echo "Expected format: vX.Y.Z-rc.N, vX.Y.Z-beta.N or vX.Y.Z-preview.N"
-            exit 1
-          fi
 
       - name: Generate the native Android project
         run: npx expo@^54.0.25 prebuild --platform android --clean
@@ -67,12 +65,12 @@ jobs:
           test -f android/app/google-services.json
 
       - name: Build locally with EAS
-        run: npx eas-cli@latest build --platform android --profile preview --local --non-interactive
+        run: npx eas-cli@latest build --platform android --profile "$BUILD_PROFILE" --local --non-interactive
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: android-local-build-preview
+          name: android-local-build-${{ inputs.build_profile }}
           path: artifacts/**
           if-no-files-found: error
           retention-days: 7

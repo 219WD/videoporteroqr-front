@@ -1,7 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabsLayout() {
+  const insets = useSafeAreaInsets();
+  const bottomInset = insets.bottom;
+
   return (
     <Tabs
       screenOptions={{
@@ -9,8 +13,8 @@ export default function TabsLayout() {
         tabBarStyle: {
           backgroundColor: '#ffffff',
           borderTopWidth: 0,
-          height: 83,
-          paddingBottom: 20,
+          height: 83 + bottomInset,
+          paddingBottom: 20 + bottomInset,
           paddingTop: 12,
           shadowColor: '#000',
           shadowOffset: { width: 0, height: -4 },
@@ -48,26 +52,6 @@ export default function TabsLayout() {
           title: 'Inicio',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'home' : 'home-outline'} size={26} color={color} />
-          ),
-        }}
-      />
-
-      <Tabs.Screen
-        name="contacts"
-        options={{
-          title: 'Contactos',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'people' : 'people-outline'} size={24} color={color} />
-          ),
-        }}
-      />
-
-      <Tabs.Screen
-        name="history"
-        options={{
-          title: 'Historial',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'time' : 'time-outline'} size={24} color={color} />
           ),
         }}
       />

@@ -12,33 +12,29 @@
       "backgroundColor": "#FFFFFF"
     },
     "userInterfaceStyle": "automatic",
-    "platforms": [
-      "ios",
-      "android"
-    ],
+    "platforms": ["ios", "android"],
     "android": {
       "package": "com.labs219.qrdoor",
+      "newArchEnabled": true,
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#FFFFFF"
       },
       "permissions": [
         "CAMERA",
-        "RECORD_AUDIO",
         "INTERNET",
         "VIBRATE",
         "ACCESS_NETWORK_STATE",
         "MODIFY_AUDIO_SETTINGS",
-        "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.CAMERA"
       ]
     },
     "ios": {
       "bundleIdentifier": "com.labs219.qrdoor",
       "supportsTablet": true,
       "infoPlist": {
-        "NSCameraUsageDescription": "Esta aplicación necesita acceso a la cámara para videollamadas",
-        "NSMicrophoneUsageDescription": "Esta aplicación necesita acceso al micrófono para videollamadas",
+        "NSCameraUsageDescription": "Esta aplicación necesita acceso a la cámara para escanear códigos QR.",
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true
         }
@@ -59,8 +55,7 @@
         "expo-build-properties",
         {
           "android": {
-            "kotlinVersion": "2.0.21",
-            "newArchEnabled": true
+            "kotlinVersion": "2.0.21"
           },
           "ios": {
             "deploymentTarget": "15.1"
@@ -70,16 +65,16 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Permite a $(PRODUCT_NAME) acceder a tu cámara para videollamadas.",
-          "microphonePermission": "Permite a $(PRODUCT_NAME) acceder a tu micrófono para videollamadas.",
-          "recordAudioAndroid": true
+          "cameraPermission": "Permite a $(PRODUCT_NAME) acceder a tu cámara para escanear códigos QR."
         }
       ],
       [
         "expo-notifications",
         {
           "icon": "./assets/images/android-icon-monochrome.png",
-          "color": "#7D1522"
+          "color": "#7D1522",
+          "defaultChannel": "doorbell",
+          "sounds": ["./assets/sounds/doorbell.wav"]
         }
       ]
     ],
@@ -88,11 +83,15 @@
       "color": "#7D1522"
     },
     "extra": {
-      "router": {
-        "origin": false
-      },
       "eas": {
         "projectId": "c25b3c79-2ed8-4e77-ac3c-211cf738f05e"
+      },
+      "notification": {
+        "sound": "doorbell.wav",
+        "channelId": "doorbell"
+      },
+      "router": {
+        "origin": false
       }
     },
     "owner": "josescap1"
