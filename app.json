@@ -7,15 +7,19 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "splash": {
-      "image": "./assets/images/01.png",
+      "image": "./assets/images/isologo-gris-claro.png",
       "resizeMode": "contain",
       "backgroundColor": "#FFFFFF"
     },
     "userInterfaceStyle": "automatic",
-    "platforms": ["ios", "android"],
+    "platforms": [
+      "ios",
+      "android"
+    ],
     "android": {
       "package": "com.labs219.qrdoor",
       "newArchEnabled": true,
+      "softwareKeyboardLayoutMode": "resize",
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
@@ -26,25 +30,25 @@
         "INTERNET",
         "VIBRATE",
         "ACCESS_NETWORK_STATE",
-        "MODIFY_AUDIO_SETTINGS",
         "android.permission.CAMERA"
       ]
     },
     "ios": {
-      "bundleIdentifier": "com.labs219.qrdoor",
-      "supportsTablet": true,
-      "infoPlist": {
-        "NSCameraUsageDescription": "Esta aplicación necesita acceso a la cámara para escanear códigos QR.",
-        "NSAppTransportSecurity": {
-          "NSAllowsArbitraryLoads": true
+        "bundleIdentifier": "com.labs219.qrdoor",
+        "supportsTablet": true,
+        "infoPlist": {
+          "NSCameraUsageDescription": "Esta aplicación necesita acceso a la cámara para escanear códigos QR.",
+          "ITSAppUsesNonExemptEncryption": false,
+          "NSAppTransportSecurity": {
+            "NSAllowsArbitraryLoads": true
+          }
         }
-      }
     },
     "plugins": [
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/01.png",
+          "image": "./assets/images/isologo-color.png",
           "imageWidth": 240,
           "resizeMode": "contain",
           "backgroundColor": "#FFFFFF"
@@ -71,16 +75,18 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/images/android-icon-monochrome.png",
-          "color": "#7D1522",
+          "icon": "./assets/images/isologo-blanco.png",
+          "color": "#d32f2f",
           "defaultChannel": "doorbell",
-          "sounds": ["./assets/sounds/doorbell.wav"]
+          "sounds": [
+            "./assets/sounds/doorbell.wav"
+          ]
         }
       ]
     ],
     "notification": {
-      "icon": "./assets/images/android-icon-monochrome.png",
-      "color": "#7D1522"
+      "icon": "./assets/images/isologo-blanco.png",
+      "color": "#d32f2f"
     },
     "extra": {
       "eas": {

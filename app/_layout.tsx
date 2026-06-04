@@ -7,11 +7,14 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { Stack } from "expo-router";
 import { useContext, useEffect } from 'react';
-import { View } from "react-native";
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from "../context/AuthContext";
 import { AuthContext } from "../context/AuthContext";
 import PushNotificationBridge from "../components/PushNotificationBridge";
+import WebSocketBridge from "../components/WebSocketBridge";
+import { setupConsoleLogging } from '../utils/logger';
+
+setupConsoleLogging();
 
 SplashScreen.preventAutoHideAsync().catch(() => {
   // Ignore repeated calls during fast refresh.
@@ -36,19 +39,22 @@ function AppNavigator({ appReady }: { appReady: boolean }) {
     return (
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="chat/[callId]" options={{ headerShown: false }} />
         <Stack.Screen name="auth/login" options={{ headerShown: false }} />
         <Stack.Screen name="auth/register" options={{ headerShown: false }} />
+        <Stack.Screen name="auth/verify-email" options={{ headerShown: false }} />
+        <Stack.Screen name="auth/forgot-password" options={{ headerShown: false }} />
+        <Stack.Screen name="auth/reset-password" options={{ headerShown: false }} />
       </Stack>
     );
   }
 
   return (
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="flows/[callId]" options={{ headerShown: false, presentation: 'modal' }} />
-        <Stack.Screen name="qr-scan" options={{ headerShown: false, presentation: 'modal' }} />
-      </Stack>
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="index" options={{ headerShown: false }} />
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="chat/[callId]" options={{ headerShown: false }} />
+    </Stack>
   );
 }
 
@@ -67,6 +73,7 @@ export default function RootLayout() {
       <StatusBar style="dark" backgroundColor="#FAFFFF" translucent={false} />
       <AuthProvider>
         <PushNotificationBridge />
+        <WebSocketBridge />
         <AppNavigator appReady={fontsLoaded} />
       </AuthProvider>
     </SafeAreaProvider>

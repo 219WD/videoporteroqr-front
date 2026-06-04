@@ -1,38 +1,20 @@
-import { AppHero } from '@/components/home/AppHero';
-import { ConversationCard } from '@/components/home/ConversationCard';
-import { useHomePage } from '@/hooks/useHomePage';
-import Ionicons from '@expo/vector-icons/Ionicons';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
-import AppView from '../../components/AppView';
+import { Image, Text, View, StyleSheet } from "react-native"
 
-export default function HomeScreen() {
-  const {
-    conversations,
-    loading,
-    insets,
-    keyExtractor
-  } = useHomePage()
-
+export const AppHero = () => {
   return (
-    <AppView style={styles.container}>
-      <FlatList
-        data={conversations}
-        keyExtractor={keyExtractor}
-        renderItem={ConversationCard}
-        refreshing={loading}
-        ListHeaderComponent={<AppHero />}
-        ListEmptyComponent={
-          <View style={styles.centerEmpty}>
-            <Ionicons name="person-outline" size={60} color="#ccc" />
-            <Text style={styles.emptyTitle}>Todavia no hay mensajes</Text>
-            <Text style={styles.emptyText}>Cuando entren mensajes anonimos, sus chats apareceran aqui.</Text>
-          </View>
-        }
-        contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 20 }]}
-        showsVerticalScrollIndicator={false}
-      />
-    </AppView>
-  );
+  <View style={styles.headerStack}>
+    <View style={styles.hero}>
+      <View style={styles.heroCopy}>
+        <Text style={styles.kicker}>Inicio</Text>
+        <Text style={styles.title}>Panel principal</Text>
+      </View>
+
+      <View style={styles.heroBadge}>
+        <Image source={require('../../assets/images/icon.png')} style={styles.heroImage} resizeMode="contain" />
+      </View>
+    </View>
+  </View>
+  )
 }
 
 const styles = StyleSheet.create({

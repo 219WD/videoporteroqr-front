@@ -2,8 +2,10 @@
 import React, { createContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from '../utils/api';
+import { createLogger } from '../utils/logger';
 
 export const AuthContext = createContext();
+const log = createLogger('auth');
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -16,7 +18,7 @@ export function AuthProvider({ children }) {
   async function loadUser() {
     try {
       const token = await AsyncStorage.getItem('token');
-      console.log('Token encontrado:', !!token);
+      log.debug('token encontrado:', Boolean(token));
 
       if (!token) {
         setUser(null);
@@ -27,7 +29,12 @@ export function AuthProvider({ children }) {
       const { data } = await api.get('/auth/me');
       setUser(data);
     } catch (error) {
-      console.log('Error en loadUser:', error);
+      const status = error?.response?.status || null;
+      if (status === 401) {
+        log.info('loadUser sesion invalida');
+      } else {
+        log.error('loadUser error:', error);
+      }
       await AsyncStorage.removeItem('token');
       setUser(null);
     } finally {
@@ -41,17 +48,15 @@ export function AuthProvider({ children }) {
 
   async function login(email, password) {
     try {
-      console.log('Login llamado con:', email);
-
       const { data } = await api.post('/auth/login', { email, password });
 
       await AsyncStorage.setItem('token', data.token);
       setUser(data.user);
-      console.log('Login exitoso');
+      log.info('login exitoso');
 
       return data.user;
     } catch (error) {
-      console.error('Error en login:', error);
+      log.error('login error:', error);
       throw error;
     }
   }
@@ -67,21 +72,20 @@ export function AuthProvider({ children }) {
 
       if (data.token) {
         await AsyncStorage.setItem('token', data.token);
+        setUser(data.user || data.host || data);
+      } else {
+        setUser(null);
       }
 
-      const userData = data.user || data.host || data;
-      setUser(userData);
-      return userData;
+      return data;
     } catch (error) {
-      console.error('Error en register:', error);
+      log.error('register error:', error);
       throw error;
     }
   }
 
   async function registerHost(name, email, password) {
     try {
-      console.log('RegisterHost llamado:', email);
-
       const { data } = await api.post('/auth/register', {
         name,
         email,
@@ -90,13 +94,70 @@ export function AuthProvider({ children }) {
 
       if (data.token) {
         await AsyncStorage.setItem('token', data.token);
+        setUser(data.user || data.host || data);
+      } else {
+        setUser(null);
       }
 
-      const userData = data.host || data;
-      setUser(userData);
-      return userData;
+      return data;
     } catch (error) {
-      console.error('Error en registerHost:', error);
+      log.error('registerHost error:', error);
+      throw error;
+    }
+  }
+
+  async function verifyEmail(email, otp) {
+    try {
+      const { data } = await api.post('/auth/verify-email', { email, otp });
+
+      if (data.token) {
+        await AsyncStorage.setItem('token', data.token);
+        setUser(data.user);
+      }
+
+      return data;
+    } catch (error) {
+      log.error('verifyEmail error:', error);
+      throw error;
+    }
+  }
+
+  async function resendEmailOtp(email) {
+    try {
+      const { data } = await api.post('/auth/resend-email-otp', { email });
+      return data;
+    } catch (error) {
+      log.error('resendEmailOtp error:', error);
+      throw error;
+    }
+  }
+
+  async function forgotPassword(email) {
+    try {
+      const { data } = await api.post('/auth/forgot-password', { email });
+      return data;
+    } catch (error) {
+      log.error('forgotPassword error:', error);
+      throw error;
+    }
+  }
+
+  async function resetPassword(email, otp, newPassword) {
+    try {
+      const { data } = await api.post('/auth/reset-password', {
+        email,
+        otp,
+        newPassword,
+      });
+
+      if (data.token) {
+        await AsyncStorage.setItem('token', data.token);
+        setUser(data.user);
+      }
+
+      return data;
+    } catch (error) {
+      log.error('resetPassword error:', error);
       throw error;
     }
   }
@@ -105,9 +166,9 @@ export function AuthProvider({ children }) {
     try {
       await AsyncStorage.removeItem('token');
       setUser(null);
-      console.log('Logout completado');
+      log.info('logout completado');
     } catch (error) {
-      console.error('Error en logout:', error);
+      log.error('logout error:', error);
     }
   }
 
@@ -117,6 +178,10 @@ export function AuthProvider({ children }) {
     login,
     register,
     registerHost,
+    verifyEmail,
+    resendEmailOtp,
+    forgotPassword,
+    resetPassword,
     logout,
     refreshUser,
   };

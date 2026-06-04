@@ -1,35 +1,33 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { router } from 'expo-router';
-import React, { useContext, useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import React, { useContext, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import KeyboardAwareScreen from '../../components/KeyboardAwareScreen';
 import { AuthContext } from '../../context/AuthContext';
 
-export default function RegisterScreen() {
-  const { register } = useContext(AuthContext);
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+export default function ResetPasswordScreen() {
+  const { resetPassword } = useContext(AuthContext);
+  const params = useLocalSearchParams<{ email?: string }>();
+  const initialEmail = useMemo(() => (typeof params.email === 'string' ? params.email : ''), [params.email]);
+  const [email, setEmail] = useState(initialEmail);
+  const [otp, setOtp] = useState('');
+  const [newPassword, setNewPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleRegister = async () => {
+  const handleReset = async () => {
     try {
       setLoading(true);
-      const result = await register(name.trim(), email.trim(), password, 'host');
-
-      if (result?.requiresEmailVerification) {
-        router.replace({
-          pathname: '/auth/verify-email',
-          params: { email: result.email || email.trim() },
-        });
-        return;
-      }
+      const result = await resetPassword(email.trim(), otp.trim(), newPassword);
 
       if (result?.token) {
         router.replace('/(tabs)');
+        return;
       }
+
+      Alert.alert('Contrasena actualizada', 'Ahora podes ingresar de nuevo.');
+      router.replace('/auth/login');
     } catch (error: any) {
-      Alert.alert('No pudimos crear la cuenta', error.response?.data?.error || 'Revisa los datos e intenta otra vez.');
+      Alert.alert('No pudimos cambiar la contrasena', error.response?.data?.error || 'Revisa los datos e intenta otra vez.');
     } finally {
       setLoading(false);
     }
@@ -38,17 +36,10 @@ export default function RegisterScreen() {
   return (
     <KeyboardAwareScreen contentStyle={styles.content}>
       <View style={styles.container}>
-        <Text style={styles.title}>Registrarse</Text>
-        <Text style={styles.subtitle}>Crea tu cuenta para empezar a usar la app.</Text>
+        <Text style={styles.title}>Nueva contrasena</Text>
+        <Text style={styles.subtitle}>Ingresa el codigo que recibiste y define una nueva contrasena.</Text>
 
         <View style={styles.form}>
-        <TextInput
-          style={styles.input}
-          placeholder="Nombre"
-          placeholderTextColor="#999"
-          value={name}
-          onChangeText={setName}
-        />
         <TextInput
           style={styles.input}
           placeholder="Email"
@@ -60,20 +51,29 @@ export default function RegisterScreen() {
         />
         <TextInput
           style={styles.input}
-          placeholder="Contrasena"
+          placeholder="Codigo de 6 digitos"
           placeholderTextColor="#999"
-          value={password}
-          onChangeText={setPassword}
+          value={otp}
+          onChangeText={setOtp}
+          keyboardType="number-pad"
+          maxLength={6}
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="Nueva contrasena"
+          placeholderTextColor="#999"
+          value={newPassword}
+          onChangeText={setNewPassword}
           secureTextEntry
         />
 
-        <TouchableOpacity style={styles.primaryButton} onPress={handleRegister} disabled={loading}>
-          {loading ? <ActivityIndicator color="#FAFFFF" /> : <Ionicons name="person-add-outline" size={18} color="#FAFFFF" />}
-          <Text style={styles.primaryButtonText}>Crear cuenta</Text>
+        <TouchableOpacity style={styles.primaryButton} onPress={handleReset} disabled={loading}>
+          {loading ? <ActivityIndicator color="#FAFFFF" /> : <Ionicons name="lock-open-outline" size={18} color="#FAFFFF" />}
+          <Text style={styles.primaryButtonText}>Cambiar contrasena</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.secondaryButton} onPress={() => router.push('/auth/login')}>
-          <Text style={styles.secondaryButtonText}>Ya tengo cuenta</Text>
+        <TouchableOpacity style={styles.secondaryButton} onPress={() => router.back()}>
+          <Text style={styles.secondaryButtonText}>Volver</Text>
         </TouchableOpacity>
       </View>
       </View>

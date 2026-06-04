@@ -7,6 +7,7 @@ import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
 import { AuthContext } from '../context/AuthContext';
 import { api } from '../utils/api';
+import { createLogger } from '../utils/logger';
 import { hasSeenNotificationId, markNotificationSeen } from '../utils/notificationDeduper';
 
 Notifications.setNotificationHandler({
@@ -21,6 +22,7 @@ Notifications.setNotificationHandler({
 const DEVICE_ID_KEY = 'push-device-id';
 const DEFAULT_NOTIFICATION_SOUND = 'doorbell.wav';
 const DEFAULT_NOTIFICATION_CHANNEL = 'doorbell';
+const log = createLogger('push-bridge');
 
 async function getDeviceId() {
   const existing = await AsyncStorage.getItem(DEVICE_ID_KEY);
@@ -58,15 +60,11 @@ function getNotificationId(data: any) {
   return data?.notificationId || null;
 }
 
-function logNotification(...args: unknown[]) {
-  console.info('[push-bridge]', ...args);
-}
-
 function navigateFromNotification(data: any) {
   const notificationId = getNotificationId(data);
   const targetConversationId = data?.conversationId || data?.callId || data?.params?.callId || null;
 
-  logNotification('navigate:start', {
+  log.info('navigate:start', {
     notificationId,
     screen: data?.screen || null,
     conversationId: targetConversationId,
@@ -74,12 +72,12 @@ function navigateFromNotification(data: any) {
   });
 
   if (notificationId && hasSeenNotificationId(notificationId)) {
-    logNotification('navigate:skip-seen', { notificationId });
+    log.info('navigate:skip-seen', { notificationId });
     return;
   }
 
   if (notificationId) {
-    logNotification('navigate:mark-seen', { notificationId });
+    log.info('navigate:mark-seen', { notificationId });
     markNotificationSeen(notificationId);
   }
 
@@ -88,7 +86,7 @@ function navigateFromNotification(data: any) {
     return;
   }
 
-  const pathname = screen || '/flows/[callId]';
+  const pathname = screen || '/chat/[callId]';
   const params = data?.params || (targetConversationId ? { callId: targetConversationId } : {});
 
   router.push({
@@ -96,7 +94,7 @@ function navigateFromNotification(data: any) {
     params,
   });
 
-  logNotification('navigate:done', {
+  log.info('navigate:done', {
     notificationId,
     pathname,
     params,
@@ -121,11 +119,12 @@ export default function PushNotificationBridge() {
     async function registerPushToken() {
       try {
         if (!Device.isDevice) return;
+        if (!user?.id) return;
 
         const projectId = getProjectId();
         if (!projectId) return;
 
-        logNotification('register:start', {
+        log.info('register:start', {
           userId: user?.id || null,
           projectId,
           platform: Platform.OS,
@@ -172,7 +171,7 @@ export default function PushNotificationBridge() {
           token: expoPushToken,
         };
 
-        logNotification('register:done', {
+        log.info('register:done', {
           userId: user?.id || null,
           tokenPrefix: expoPushToken.slice(0, 18),
         });
@@ -187,7 +186,7 @@ export default function PushNotificationBridge() {
       const notificationId = getNotificationId(data);
       const responseKey = `${notificationId || 'no-id'}:${actionIdentifier || 'default'}`;
 
-      logNotification('response:received', {
+      log.info('response:received', {
         responseKey,
         actionIdentifier: actionIdentifier || null,
         notificationId,
@@ -197,14 +196,14 @@ export default function PushNotificationBridge() {
       });
 
       if (responseKey === lastHandledResponseRef.current) {
-        logNotification('response:skip-duplicate', { responseKey });
+        log.info('response:skip-duplicate', { responseKey });
         return;
       }
 
       lastHandledResponseRef.current = responseKey;
 
       if (notificationId && hasSeenNotificationId(notificationId)) {
-        logNotification('response:skip-seen', { notificationId, responseKey });
+        log.info('response:skip-seen', { notificationId, responseKey });
         return;
       }
 
@@ -212,20 +211,20 @@ export default function PushNotificationBridge() {
 
       try {
         await Notifications.clearLastNotificationResponseAsync();
-        logNotification('response:cleared-last-response', { responseKey });
+        log.info('response:cleared-last-response', { responseKey });
       } catch {
         // Ignore clearing issues; navigation already happened.
-        logNotification('response:clear-failed', { responseKey });
+        log.warn('response:clear-failed', { responseKey });
       }
     }
 
     async function bootstrap() {
-      logNotification('bootstrap:start', { userId: user?.id || null, platform: Platform.OS });
+      log.info('bootstrap:start', { userId: user?.id || null, platform: Platform.OS });
       await ensureAndroidNotificationChannel();
       await registerPushToken();
 
       const lastResponse = await Notifications.getLastNotificationResponseAsync();
-      logNotification('bootstrap:last-response', {
+      log.info('bootstrap:last-response', {
         hasLastResponse: Boolean(lastResponse),
         notificationId: lastResponse ? getNotificationId(extractNotificationData(lastResponse)) : null,
         screen: lastResponse ? extractNotificationData(lastResponse)?.screen || null : null,
@@ -236,10 +235,10 @@ export default function PushNotificationBridge() {
 
       try {
         await Notifications.clearLastNotificationResponseAsync();
-        logNotification('bootstrap:cleared-last-response');
+        log.info('bootstrap:cleared-last-response');
       } catch {
         // Ignore clearing issues on bootstrap.
-        logNotification('bootstrap:clear-failed');
+        log.warn('bootstrap:clear-failed');
       }
     }
 
@@ -257,24 +256,24 @@ export default function PushNotificationBridge() {
     receivedSubscription = Notifications.addNotificationReceivedListener((notification) => {
       const data = extractNotificationData(notification);
       const notificationId = getNotificationId(data);
-      logNotification('received', {
+      log.info('received', {
         notificationId,
         screen: data?.screen || null,
         conversationId: data?.conversationId || data?.callId || data?.params?.callId || null,
       });
 
       if (notificationId && hasSeenNotificationId(notificationId)) {
-        logNotification('received:skip-seen', { notificationId });
+        log.info('received:skip-seen', { notificationId });
         return;
       }
 
-      logNotification('received:accepted', {
+      log.info('received:accepted', {
         notificationId,
       });
     });
 
     responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
-      logNotification('response-listener-fired');
+      log.info('response-listener-fired');
       handleResponse(response).catch(() => {});
     });
 
@@ -284,7 +283,7 @@ export default function PushNotificationBridge() {
       responseSubscription?.remove();
       appStateSubscription?.remove();
     };
-  }, [user?.id]);
+  }, [user?.id, user?.role]);
 
   return null;
 }

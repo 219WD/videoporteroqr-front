@@ -1,43 +1,51 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { router } from 'expo-router';
-import React, { useContext, useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import React, { useContext, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import KeyboardAwareScreen from '../../components/KeyboardAwareScreen';
 import { AuthContext } from '../../context/AuthContext';
 
-export default function LoginScreen() {
-  const { login } = useContext(AuthContext);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+export default function VerifyEmailScreen() {
+  const { verifyEmail, resendEmailOtp } = useContext(AuthContext);
+  const params = useLocalSearchParams<{ email?: string }>();
+  const initialEmail = useMemo(() => (typeof params.email === 'string' ? params.email : ''), [params.email]);
+  const [email, setEmail] = useState(initialEmail);
+  const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
 
-  const handleLogin = async () => {
+  const handleVerify = async () => {
     try {
       setLoading(true);
-      await login(email.trim(), password);
-      router.replace('/(tabs)');
-    } catch (error: any) {
-      const apiError = error.response?.data;
+      const result = await verifyEmail(email.trim(), otp.trim());
 
-      if (apiError?.code === 'EMAIL_NOT_VERIFIED' || apiError?.requiresEmailVerification) {
-        router.push({
-          pathname: '/auth/verify-email',
-          params: { email: email.trim() },
-        });
-        return;
+      if (result?.token) {
+        router.replace('/(tabs)');
       }
-
-      Alert.alert('No pudimos iniciar sesion', apiError?.error || 'Revisa tus datos e intenta otra vez.');
+    } catch (error: any) {
+      Alert.alert('No pudimos verificar el correo', error.response?.data?.error || 'Revisa el codigo e intenta otra vez.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    try {
+      setResendLoading(true);
+      await resendEmailOtp(email.trim());
+      Alert.alert('Codigo enviado', 'Revisa tu correo para ver el nuevo codigo.');
+    } catch (error: any) {
+      Alert.alert('No pudimos reenviar el codigo', error.response?.data?.error || 'Intenta de nuevo en unos momentos.');
+    } finally {
+      setResendLoading(false);
     }
   };
 
   return (
     <KeyboardAwareScreen contentStyle={styles.content}>
       <View style={styles.container}>
-        <Text style={styles.title}>Ingresar</Text>
-        <Text style={styles.subtitle}>Ingresa con tu cuenta para continuar.</Text>
+        <Text style={styles.title}>Verificar correo</Text>
+        <Text style={styles.subtitle}>Ingresa el codigo de 6 digitos que enviamos a tu correo.</Text>
 
         <View style={styles.form}>
         <TextInput
@@ -51,24 +59,25 @@ export default function LoginScreen() {
         />
         <TextInput
           style={styles.input}
-          placeholder="Contrasena"
+          placeholder="Codigo de 6 digitos"
           placeholderTextColor="#999"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
+          value={otp}
+          onChangeText={setOtp}
+          keyboardType="number-pad"
+          maxLength={6}
         />
 
-        <TouchableOpacity style={styles.primaryButton} onPress={handleLogin} disabled={loading}>
-          {loading ? <ActivityIndicator color="#FAFFFF" /> : <Ionicons name="log-in-outline" size={18} color="#FAFFFF" />}
-          <Text style={styles.primaryButtonText}>Ingresar</Text>
+        <TouchableOpacity style={styles.primaryButton} onPress={handleVerify} disabled={loading}>
+          {loading ? <ActivityIndicator color="#FAFFFF" /> : <Ionicons name="shield-checkmark-outline" size={18} color="#FAFFFF" />}
+          <Text style={styles.primaryButtonText}>Verificar</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.secondaryButton} onPress={() => router.push('/auth/register')}>
-          <Text style={styles.secondaryButtonText}>Crear cuenta</Text>
+        <TouchableOpacity style={styles.secondaryButton} onPress={handleResend} disabled={resendLoading}>
+          {resendLoading ? <ActivityIndicator color="#d32f2f" /> : <Text style={styles.secondaryButtonText}>Reenviar codigo</Text>}
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.linkButton} onPress={() => router.push('/auth/forgot-password')}>
-          <Text style={styles.linkButtonText}>Olvide mi contrasena</Text>
+        <TouchableOpacity style={styles.linkButton} onPress={() => router.push('/auth/login')}>
+          <Text style={styles.linkButtonText}>Volver al ingreso</Text>
         </TouchableOpacity>
       </View>
       </View>

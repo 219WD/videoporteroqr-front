@@ -25,7 +25,7 @@ export default function TabsLayout() {
           borderTopRightRadius: 20,
           overflow: 'hidden',
         },
-        tabBarActiveTintColor: '#7D1522',
+        tabBarActiveTintColor: '#d32f2f',
         tabBarInactiveTintColor: '#8e8e93',
         tabBarLabelStyle: {
           fontFamily: 'BaiJamjuree',
@@ -57,24 +57,15 @@ export default function TabsLayout() {
       />
 
       <Tabs.Screen
-        name="messages"
+        name="profile"
         options={{
-          title: 'Mensajes',
+          title: 'Perfil',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'chatbubble' : 'chatbubble-outline'} size={24} color={color} />
+            <Ionicons name={focused ? 'person' : 'person-outline'} size={24} color={color} />
           ),
         }}
       />
 
-      <Tabs.Screen
-        name="qr"
-        options={{
-          title: 'QR',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'qr-code' : 'qr-code-outline'} size={24} color={color} />
-          ),
-        }}
-      />
     </Tabs>
   );
 }

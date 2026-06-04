@@ -1,39 +1,66 @@
-import { AppHero } from '@/components/home/AppHero';
-import { ConversationCard } from '@/components/home/ConversationCard';
-import { useHomePage } from '@/hooks/useHomePage';
-import Ionicons from '@expo/vector-icons/Ionicons';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
-import AppView from '../../components/AppView';
+import { ConversationItem } from "@/types";
+import { formatClock, isConversationExpired } from "@/utils/formatters";
+import { createLogger } from "@/utils/logger";
+import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
+import { Text, TouchableOpacity, View, StyleSheet } from "react-native";
 
-export default function HomeScreen() {
-  const {
-    conversations,
-    loading,
-    insets,
-    keyExtractor
-  } = useHomePage()
+export const ConversationCard = ({ item }: { item: ConversationItem }) => {
+  const log = createLogger('ConversationCard');
+  const preview = item.lastMessageText || 'Sin mensajes todavia';
+  const statusLabel =
+    item.status === 'answered'
+      ? 'Respondida'
+      : item.status === 'timeout'
+        ? 'Expirada'
+        : item.status === 'rejected'
+          ? 'Rechazada'
+          : 'Pendiente';
+  const deliveryMark =
+    item.lastMessageSender === 'host'
+      ? item.lastMessageDeliveryStatus === 'read'
+        ? '✓✓'
+        : item.lastMessageDeliveryStatus === 'delivered'
+          ? '✓'
+          : ''
+      : '';
+  const openConversation = (conversationId: string) => {
+    if (!conversationId) {
+      log.warn('openConversation called without conversationId');
+      return;
+    }
+    router.push(`/chat/${encodeURIComponent(conversationId)}`);
+  };
 
   return (
-    <AppView style={styles.container}>
-      <FlatList
-        data={conversations}
-        keyExtractor={keyExtractor}
-        renderItem={ConversationCard}
-        refreshing={loading}
-        ListHeaderComponent={<AppHero />}
-        ListEmptyComponent={
-          <View style={styles.centerEmpty}>
-            <Ionicons name="person-outline" size={60} color="#ccc" />
-            <Text style={styles.emptyTitle}>Todavia no hay mensajes</Text>
-            <Text style={styles.emptyText}>Cuando entren mensajes anonimos, sus chats apareceran aqui.</Text>
+    <TouchableOpacity
+      style={styles.card}
+      onPress={() => openConversation(item.conversationId || item.callId || item.id)}
+    >
+      <View style={styles.avatarAnon}>
+        <Ionicons name="person" size={20} color="#d32f2f" />
+      </View>
+      <View style={styles.info}>
+        <View style={styles.topRow}>
+          <Text style={styles.name}>{item.guestName}</Text>
+          <View style={styles.timeWrap}>
+            <Text style={styles.time}>{formatClock(item.lastMessageAt)}</Text>
+            {deliveryMark ? <Text style={styles.deliveryMark}>{deliveryMark}</Text> : null}
           </View>
-        }
-        contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 20 }]}
-        showsVerticalScrollIndicator={false}
-      />
-    </AppView>
+        </View>
+        <Text style={styles.email}>{statusLabel}</Text>
+        <Text style={styles.preview} numberOfLines={2}>
+          {item.lastMessageSender === 'host' ? `Tu: ${preview}` : preview}
+        </Text>
+        {item.hostUnreadCount > 0 && !isConversationExpired(item) && (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{item.hostUnreadCount}</Text>
+          </View>
+        )}
+      </View>
+    </TouchableOpacity>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -124,6 +151,16 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#999',
     fontFamily: 'BaiJamjuree',
+  },
+  timeWrap: {
+    alignItems: 'flex-end',
+    gap: 2,
+  },
+  deliveryMark: {
+    fontSize: 10,
+    fontFamily: 'BaiJamjuree-Bold',
+    color: '#7E57C2',
+    letterSpacing: 0.4,
   },
   email: {
     marginTop: 2,

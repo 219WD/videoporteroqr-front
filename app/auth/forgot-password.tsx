@@ -5,31 +5,21 @@ import { ActivityIndicator, Alert, StyleSheet, Text, TextInput, TouchableOpacity
 import KeyboardAwareScreen from '../../components/KeyboardAwareScreen';
 import { AuthContext } from '../../context/AuthContext';
 
-export default function RegisterScreen() {
-  const { register } = useContext(AuthContext);
-  const [name, setName] = useState('');
+export default function ForgotPasswordScreen() {
+  const { forgotPassword } = useContext(AuthContext);
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleRegister = async () => {
+  const handleSend = async () => {
     try {
       setLoading(true);
-      const result = await register(name.trim(), email.trim(), password, 'host');
-
-      if (result?.requiresEmailVerification) {
-        router.replace({
-          pathname: '/auth/verify-email',
-          params: { email: result.email || email.trim() },
-        });
-        return;
-      }
-
-      if (result?.token) {
-        router.replace('/(tabs)');
-      }
+      await forgotPassword(email.trim());
+      router.push({
+        pathname: '/auth/reset-password',
+        params: { email: email.trim() },
+      });
     } catch (error: any) {
-      Alert.alert('No pudimos crear la cuenta', error.response?.data?.error || 'Revisa los datos e intenta otra vez.');
+      Alert.alert('No pudimos iniciar la recuperacion', error.response?.data?.error || 'Revisa el correo e intenta otra vez.');
     } finally {
       setLoading(false);
     }
@@ -38,17 +28,10 @@ export default function RegisterScreen() {
   return (
     <KeyboardAwareScreen contentStyle={styles.content}>
       <View style={styles.container}>
-        <Text style={styles.title}>Registrarse</Text>
-        <Text style={styles.subtitle}>Crea tu cuenta para empezar a usar la app.</Text>
+        <Text style={styles.title}>Recuperar contrasena</Text>
+        <Text style={styles.subtitle}>Te enviaremos un codigo por correo para crear una nueva contrasena.</Text>
 
         <View style={styles.form}>
-        <TextInput
-          style={styles.input}
-          placeholder="Nombre"
-          placeholderTextColor="#999"
-          value={name}
-          onChangeText={setName}
-        />
         <TextInput
           style={styles.input}
           placeholder="Email"
@@ -58,22 +41,14 @@ export default function RegisterScreen() {
           autoCapitalize="none"
           keyboardType="email-address"
         />
-        <TextInput
-          style={styles.input}
-          placeholder="Contrasena"
-          placeholderTextColor="#999"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
 
-        <TouchableOpacity style={styles.primaryButton} onPress={handleRegister} disabled={loading}>
-          {loading ? <ActivityIndicator color="#FAFFFF" /> : <Ionicons name="person-add-outline" size={18} color="#FAFFFF" />}
-          <Text style={styles.primaryButtonText}>Crear cuenta</Text>
+        <TouchableOpacity style={styles.primaryButton} onPress={handleSend} disabled={loading}>
+          {loading ? <ActivityIndicator color="#FAFFFF" /> : <Ionicons name="mail-outline" size={18} color="#FAFFFF" />}
+          <Text style={styles.primaryButtonText}>Enviar codigo</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.secondaryButton} onPress={() => router.push('/auth/login')}>
-          <Text style={styles.secondaryButtonText}>Ya tengo cuenta</Text>
+        <TouchableOpacity style={styles.secondaryButton} onPress={() => router.back()}>
+          <Text style={styles.secondaryButtonText}>Volver</Text>
         </TouchableOpacity>
       </View>
       </View>
