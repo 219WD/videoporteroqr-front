@@ -1,21 +1,21 @@
 {
   "project_info": {
-    "project_number": "208559981136",
-    "project_id": "video-portero-219",
-    "storage_bucket": "video-portero-219.firebasestorage.app"
+    "project_number": "1075856356293",
+    "project_id": "albieroseguridadqr",
+    "storage_bucket": "albieroseguridadqr.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:208559981136:android:88781b2cd27ec5dc060755",
+        "mobilesdk_app_id": "1:1075856356293:android:0a7e48a6191c8be52d51ac",
         "android_client_info": {
-          "package_name": "com.labs219.qrdoor"
+          "package_name": "com.albieroseguridad.porteroqr"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyBHUK-eVSZ7px2sYJWXG-CCxgM1e2Zs0WQ"
+          "current_key": "AIzaSyAxi7NpfqQY1DPSktSUS6yrpgPbUGv3fIE"
         }
       ],
       "services": {

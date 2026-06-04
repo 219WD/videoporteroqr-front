@@ -37,7 +37,7 @@ function getProjectId() {
   return (
     Constants.expoConfig?.extra?.eas?.projectId ||
     Constants.easConfig?.projectId ||
-    'c25b3c79-2ed8-4e77-ac3c-211cf738f05e'
+    null
   );
 }
 

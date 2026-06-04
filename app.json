@@ -17,7 +17,7 @@
       "android"
     ],
     "android": {
-      "package": "com.labs219.qrdoor",
+      "package": "com.albieroseguridad.porteroqr",
       "newArchEnabled": true,
       "softwareKeyboardLayoutMode": "resize",
       "googleServicesFile": "./google-services.json",
@@ -30,19 +30,20 @@
         "INTERNET",
         "VIBRATE",
         "ACCESS_NETWORK_STATE",
-        "android.permission.CAMERA"
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "ios": {
-        "bundleIdentifier": "com.labs219.qrdoor",
-        "supportsTablet": true,
-        "infoPlist": {
-          "NSCameraUsageDescription": "Esta aplicación necesita acceso a la cámara para escanear códigos QR.",
-          "ITSAppUsesNonExemptEncryption": false,
-          "NSAppTransportSecurity": {
-            "NSAllowsArbitraryLoads": true
-          }
+      "bundleIdentifier": "com.albieroseguridad.porteroqr",
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Esta aplicación necesita acceso a la cámara para escanear códigos QR.",
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
         }
+      }
     },
     "plugins": [
       [
@@ -89,17 +90,17 @@
       "color": "#d32f2f"
     },
     "extra": {
-      "eas": {
-        "projectId": "c25b3c79-2ed8-4e77-ac3c-211cf738f05e"
-      },
       "notification": {
         "sound": "doorbell.wav",
         "channelId": "doorbell"
       },
       "router": {
         "origin": false
+      },
+      "eas": {
+        "projectId": "f95f16ea-f5c7-49af-bbf8-a33201541cc4"
       }
     },
-    "owner": "josescap1"
+    "owner": "albieroseguridad"
   }
 }
