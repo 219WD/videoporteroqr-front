@@ -46,3 +46,4 @@ app-example
 .env.local
 build.log
 *.apk
+*.aab
