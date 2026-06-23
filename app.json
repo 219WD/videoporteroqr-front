@@ -2,7 +2,7 @@
   "expo": {
     "name": "QR Door",
     "slug": "video-portore",
-    "version": "1.0.0",
+    "version": "0.0.1.beta.1",
     "scheme": "qrdoor",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -12,10 +12,7 @@
       "backgroundColor": "#FFFFFF"
     },
     "userInterfaceStyle": "automatic",
-    "platforms": [
-      "ios",
-      "android"
-    ],
+    "platforms": ["ios", "android"],
     "android": {
       "package": "com.albieroseguridad.porteroqr",
       "newArchEnabled": true,
@@ -79,9 +76,7 @@
           "icon": "./assets/images/isologo-blanco.png",
           "color": "#d32f2f",
           "defaultChannel": "doorbell",
-          "sounds": [
-            "./assets/sounds/doorbell.wav"
-          ]
+          "sounds": ["./assets/sounds/doorbell.wav"]
         }
       ]
     ],
