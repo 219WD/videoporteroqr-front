@@ -142,5 +142,5 @@ export NODE_ENV="production"
 
 npm ci
 npx expo@^54.0.25 prebuild --platform android --clean
-npx eas-cli@latest build --platform android --profile preview --local --non-interactive
+npx eas-cli@latest build --platform android --profile production --local --non-interactive
 ```

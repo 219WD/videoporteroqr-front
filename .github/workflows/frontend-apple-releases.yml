@@ -1,0 +1,87 @@
+name: iOS local build - manual release
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_profile:
+        description: "iOS build profile"
+        required: true
+        type: choice
+        default: preview
+        options:
+          - preview
+          - production
+
+jobs:
+  build-ios:
+    environment: ${{ inputs.build_profile }}
+    runs-on: macos-latest
+
+    env:
+      EXPO_PUBLIC_BACKEND_URL: ${{ vars.EXPO_PUBLIC_BACKEND_URL }}
+      EXPO_PUBLIC_SOCKET_URL: ${{ vars.EXPO_PUBLIC_SOCKET_URL }}
+      EXPO_PUBLIC_LOG_ENABLED: ${{ vars.EXPO_PUBLIC_LOG_ENABLED }}
+      EXPO_TOKEN: ${{ vars.EXPO_TOKEN }}
+      EAS_LOCAL_BUILD_ARTIFACTS_DIR: ${{ github.workspace }}/artifacts
+      BUILD_PROFILE: ${{ inputs.build_profile }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.2"
+          bundler-cache: false
+
+      - name: Install CocoaPods
+        run: |
+          sudo gem install cocoapods
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate required environment variables
+        run: |
+          test -n "$EXPO_PUBLIC_BACKEND_URL"
+          test -n "$EXPO_PUBLIC_SOCKET_URL"
+          test -n "$EXPO_PUBLIC_LOG_ENABLED"
+          test -n "$EXPO_TOKEN"
+
+      - name: Generate the native iOS project
+        run: |
+          npx expo@^54.0.25 prebuild --platform ios --clean
+
+      - name: Verify native project
+        run: |
+          test -d ios
+          test -f ios/Podfile
+
+      - name: Install Pods
+        run: |
+          cd ios
+          pod install
+
+      - name: Build locally with EAS
+        run: |
+          npx eas-cli@latest build \
+            --platform ios \
+            --profile "$BUILD_PROFILE" \
+            --local \
+            --non-interactive
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-local-build-${{ inputs.build_profile }}
+          path: artifacts/**
+          if-no-files-found: error
+          retention-days: 7
