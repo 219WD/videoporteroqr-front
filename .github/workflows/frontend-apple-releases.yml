@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      EXPO_TOKEN: ${{ vars.EXPO_TOKEN }}
+      EXPO_TOKEN: ${{ vars.EXPO_TOKEN_V2 }}
       BUILD_PROFILE: ${{ inputs.build_profile }}
 
     steps:
