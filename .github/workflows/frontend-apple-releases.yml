@@ -18,9 +18,6 @@ jobs:
     runs-on: macos-latest
 
     env:
-      EXPO_PUBLIC_BACKEND_URL: ${{ vars.EXPO_PUBLIC_BACKEND_URL }}
-      EXPO_PUBLIC_SOCKET_URL: ${{ vars.EXPO_PUBLIC_SOCKET_URL }}
-      EXPO_PUBLIC_LOG_ENABLED: ${{ vars.EXPO_PUBLIC_LOG_ENABLED }}
       EXPO_TOKEN: ${{ vars.EXPO_TOKEN }}
       EAS_LOCAL_BUILD_ARTIFACTS_DIR: ${{ github.workspace }}/artifacts
       BUILD_PROFILE: ${{ inputs.build_profile }}
@@ -51,9 +48,6 @@ jobs:
 
       - name: Validate required environment variables
         run: |
-          test -n "$EXPO_PUBLIC_BACKEND_URL"
-          test -n "$EXPO_PUBLIC_SOCKET_URL"
-          test -n "$EXPO_PUBLIC_LOG_ENABLED"
           test -n "$EXPO_TOKEN"
 
       - name: Generate the native iOS project
