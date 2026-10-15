@@ -12,6 +12,7 @@ export default function ResetPasswordScreen() {
   const [email, setEmail] = useState(initialEmail);
   const [otp, setOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleReset = async () => {
@@ -58,14 +59,24 @@ export default function ResetPasswordScreen() {
           keyboardType="number-pad"
           maxLength={6}
         />
-        <TextInput
-          style={styles.input}
-          placeholder="Nueva contrasena"
-          placeholderTextColor="#999"
-          value={newPassword}
-          onChangeText={setNewPassword}
-          secureTextEntry
-        />
+        <View style={styles.passwordInputWrapper}>
+          <TextInput
+            style={styles.passwordInput}
+            placeholder="Nueva contrasena"
+            placeholderTextColor="#999"
+            value={newPassword}
+            onChangeText={setNewPassword}
+            secureTextEntry={!showPassword}
+          />
+          <TouchableOpacity
+            style={styles.passwordVisibilityButton}
+            onPress={() => setShowPassword((visible) => !visible)}
+            accessibilityRole="button"
+            accessibilityLabel={showPassword ? 'Ocultar contrasena' : 'Mostrar contrasena'}
+          >
+            <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={21} color="#777" />
+          </TouchableOpacity>
+        </View>
 
         <TouchableOpacity style={styles.primaryButton} onPress={handleReset} disabled={loading}>
           {loading ? <ActivityIndicator color="#FAFFFF" /> : <Ionicons name="lock-open-outline" size={18} color="#FAFFFF" />}
@@ -116,6 +127,25 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     color: '#3D3D3D',
     fontFamily: 'BaiJamjuree',
+  },
+  passwordInputWrapper: {
+    borderWidth: 1,
+    borderColor: '#D8D8D8',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  passwordInput: {
+    flex: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    color: '#3D3D3D',
+    fontFamily: 'BaiJamjuree',
+  },
+  passwordVisibilityButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
   primaryButton: {
     minHeight: 50,
