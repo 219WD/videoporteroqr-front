@@ -15,7 +15,6 @@
     "platforms": ["ios", "android"],
     "android": {
       "package": "com.albieroseguridad.porteroqr",
-      "versionCode": "4",
       "newArchEnabled": true,
       "softwareKeyboardLayoutMode": "resize",
       "googleServicesFile": "./google-services.json",
