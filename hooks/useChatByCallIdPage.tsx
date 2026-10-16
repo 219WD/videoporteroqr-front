@@ -4,7 +4,7 @@ import { CHAT_EVENTS } from '@/utils/chatContract';
 import { createLogger } from '@/utils/logger';
 import { getSocket } from '@/utils/socket';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useContext, useEffect, useMemo, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const log = createLogger('useChatByCallIdPage');
@@ -14,22 +14,28 @@ export const useChatByCallIdPage = () => {
   const params = useLocalSearchParams<{ callId?: string }>();
   const { user } = useContext(AuthContext);
   const socket = getSocket();
-  const conversationId = params.callId || 'chat-demo-001';
-  const conversation = {
+  const conversationId = typeof params.callId === 'string' ? params.callId : '';
+  const [guestName, setGuestName] = useState('Visitante anónimo');
+  const [qrCode, setQrCode] = useState<string | null>(null);
+  const conversation = useMemo(() => ({
     conversationId,
-    guestName: 'Chat demo',
-  };
-  const loading = false;
+    guestName,
+  }), [conversationId, guestName]);
+  const [loading, setLoading] = useState(true);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
+  const [visitorTyping, setVisitorTyping] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const hostId = user?.id || 'host-demo-001';
-  const hostName = user?.name || 'Anfitrión demo';
+  const hostId = user?.id || '';
+  const hostName = user?.name || 'Propietario';
   const [conversationTimeoutAt, setConversationTimeoutAt] = useState<string | null>(null);
+  const [exitConfirmVisible, setExitConfirmVisible] = useState(false);
   const [now, setNow] = useState(Date.now());
   const deliveredMessageIdsRef = React.useRef(new Set<string>());
   const readMessageIdsRef = React.useRef(new Set<string>());
+  const typingStopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const messageListRef = useRef<any>(null);
 
   function toChatMessage(message: any): ChatMessage | null {
     if (!message) {
@@ -71,6 +77,13 @@ export const useChatByCallIdPage = () => {
   const expired = Boolean(conversationTimeoutAt) && timeLeftMs <= 0;
 
   const syncTimeoutAt = (payload: any) => {
+    const nextGuestName = payload?.conversation?.guestName || payload?.guestName;
+    if (typeof nextGuestName === 'string' && nextGuestName.trim()) {
+      setGuestName(nextGuestName.trim());
+    }
+    const nextQrCode = payload?.conversation?.qrCode || payload?.qrCode;
+    if (typeof nextQrCode === 'string' && nextQrCode.trim()) setQrCode(nextQrCode.trim());
+
     const timeoutAt =
       payload?.conversation?.expireAt ||
       payload?.conversation?.timeoutAt ||
@@ -136,10 +149,41 @@ export const useChatByCallIdPage = () => {
   }, [messages]);
 
   const goBackFromChat = () => {
+    if (message.trim()) {
+      setExitConfirmVisible(true);
+      return;
+    }
     router.navigate('/(tabs)');
   };
 
+  const cancelExit = () => setExitConfirmVisible(false);
+  const confirmExit = () => {
+    setExitConfirmVisible(false);
+    router.navigate('/(tabs)');
+  };
+
+  const emitTyping = (isTyping: boolean) => {
+    socket.emit(CHAT_EVENTS.TYPING, { conversationId, role: 'host', isTyping });
+  };
+
+  const handleMessageChange = (value: string) => {
+    setMessage(value);
+    if (typingStopTimerRef.current) {
+      clearTimeout(typingStopTimerRef.current);
+    }
+    emitTyping(Boolean(value.trim()));
+    if (value.trim()) {
+      typingStopTimerRef.current = setTimeout(() => emitTyping(false), 800);
+    }
+  };
+
   useEffect(() => {
+    if (!conversationId) {
+      setLoading(false);
+      setError('No pudimos identificar esta conversación.');
+      return;
+    }
+
     socket.connect();
 
     const handleConversationState = (payload: any) => {
@@ -148,6 +192,8 @@ export const useChatByCallIdPage = () => {
       if (incomingConversationId !== conversationId) {
         return;
       }
+
+      setLoading(false);
 
       if (Array.isArray(payload?.messages) && payload.messages.length > 0) {
         const nextMessages = payload.messages.map(toChatMessage).filter(Boolean) as ChatMessage[];
@@ -215,9 +261,17 @@ export const useChatByCallIdPage = () => {
       );
     };
 
+    const handleTyping = (payload: any) => {
+      if (payload?.conversationId !== conversationId || payload?.role !== 'guest') {
+        return;
+      }
+      setVisitorTyping(payload.isTyping === true);
+    };
+
     socket.on(CHAT_EVENTS.CONVERSATION_STATE, handleConversationState);
     socket.on(CHAT_EVENTS.MESSAGE_NEW, handleMessageNew);
     socket.on(CHAT_EVENTS.MESSAGE_STATUS, handleMessageStatus);
+    socket.on(CHAT_EVENTS.TYPING, handleTyping);
 
     socket.emit(
       CHAT_EVENTS.JOIN,
@@ -240,6 +294,7 @@ export const useChatByCallIdPage = () => {
         }
 
         syncTimeoutAt(response);
+        setLoading(false);
       },
     );
 
@@ -247,6 +302,9 @@ export const useChatByCallIdPage = () => {
       socket.off(CHAT_EVENTS.CONVERSATION_STATE, handleConversationState);
       socket.off(CHAT_EVENTS.MESSAGE_NEW, handleMessageNew);
       socket.off(CHAT_EVENTS.MESSAGE_STATUS, handleMessageStatus);
+      socket.off(CHAT_EVENTS.TYPING, handleTyping);
+      emitTyping(false);
+      if (typingStopTimerRef.current) clearTimeout(typingStopTimerRef.current);
     };
   }, [conversation.guestName, conversationId, hostId, hostName, socket]);
 
@@ -261,6 +319,10 @@ export const useChatByCallIdPage = () => {
       return true;
     });
   }, [messages]);
+
+  useEffect(() => {
+    messageListRef.current?.scrollToOffset?.({ offset: 0, animated: true });
+  }, [filteredMessages.length]);
 
   const sendMessage = () => {
     const text = message.trim();
@@ -302,6 +364,7 @@ export const useChatByCallIdPage = () => {
         }
 
         setMessage('');
+        emitTyping(false);
       },
     );
   };
@@ -312,21 +375,28 @@ export const useChatByCallIdPage = () => {
   return {
     props: {
       insets,
+      messageListRef,
       conversation,
+        qrCode,
       conversationTimeoutAt,
       expired,
       timeLeftMs,
       loading,
       filteredMessages,
       message,
+      visitorTyping,
       setMessage,
       error,
       sending,
+        exitConfirmVisible,
     },
     methods: {
       goBackFromChat,
+      cancelExit,
+      confirmExit,
       keyExtractor,
       sendMessage,
+      handleMessageChange,
     },
   };
 };

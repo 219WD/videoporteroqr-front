@@ -1,8 +1,10 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import React, { useContext, useState } from 'react';
-import { ActivityIndicator, Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import AppModal from '../../components/AppModal';
 import KeyboardAwareScreen from '../../components/KeyboardAwareScreen';
+import PasswordStrength from '../../components/PasswordStrength';
 import { AuthContext } from '../../context/AuthContext';
 
 export default function RegisterScreen() {
@@ -10,18 +12,29 @@ export default function RegisterScreen() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [passwordConfirmation, setPasswordConfirmation] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [modal, setModal] = useState<{ title: string; message: string } | null>(null);
 
   const handleRegister = async () => {
+    if (password !== passwordConfirmation) {
+      setModal({ title: 'Revisá las contraseñas', message: 'Las contraseñas no coinciden.' });
+      return;
+    }
+
     try {
       setLoading(true);
-      const result = await register(name.trim(), email.trim(), password, 'host');
+      const result = await register(name.trim(), email.trim(), password, passwordConfirmation, 'host');
 
       if (result?.requiresEmailVerification) {
         router.replace({
           pathname: '/auth/verify-email',
-          params: { email: result.email || email.trim() },
+          params: {
+            email: result.email || email.trim(),
+            expiresAt: result.emailVerificationExpiresAt || undefined,
+            resendAvailableAt: result.emailVerificationResendAvailableAt || undefined,
+          },
         });
         return;
       }
@@ -30,30 +43,31 @@ export default function RegisterScreen() {
         router.replace('/(tabs)');
       }
     } catch (error: any) {
-      Alert.alert('No pudimos crear la cuenta', error.response?.data?.error || 'Revisa los datos e intenta otra vez.');
+      setModal({ title: 'No pudimos crear la cuenta', message: error.response?.data?.error || 'Revisá los datos e intentá otra vez.' });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <KeyboardAwareScreen contentStyle={styles.content}>
+    <>
+      <KeyboardAwareScreen contentStyle={styles.content}>
       <View style={styles.container}>
         <Text style={styles.title}>Registrarse</Text>
-        <Text style={styles.subtitle}>Crea tu cuenta para empezar a usar la app.</Text>
+        <Text style={styles.subtitle}>Creá tu cuenta para empezar a usar la app.</Text>
 
         <View style={styles.form}>
         <TextInput
           style={styles.input}
           placeholder="Nombre"
-          placeholderTextColor="#999"
+          placeholderTextColor="#6B6265"
           value={name}
           onChangeText={setName}
         />
         <TextInput
           style={styles.input}
           placeholder="Email"
-          placeholderTextColor="#999"
+          placeholderTextColor="#6B6265"
           value={email}
           onChangeText={setEmail}
           autoCapitalize="none"
@@ -62,8 +76,8 @@ export default function RegisterScreen() {
         <View style={styles.passwordInputWrapper}>
           <TextInput
             style={styles.passwordInput}
-            placeholder="Contrasena"
-            placeholderTextColor="#999"
+            placeholder="Contraseña"
+            placeholderTextColor="#6B6265"
             value={password}
             onChangeText={setPassword}
             secureTextEntry={!showPassword}
@@ -72,11 +86,33 @@ export default function RegisterScreen() {
             style={styles.passwordVisibilityButton}
             onPress={() => setShowPassword((visible) => !visible)}
             accessibilityRole="button"
-            accessibilityLabel={showPassword ? 'Ocultar contrasena' : 'Mostrar contrasena'}
+            accessibilityLabel={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
           >
             <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={21} color="#777" />
           </TouchableOpacity>
         </View>
+        <PasswordStrength password={password} />
+        <View style={styles.passwordInputWrapper}>
+          <TextInput
+            style={styles.passwordInput}
+            placeholder="Repetir contraseña"
+            placeholderTextColor="#6B6265"
+            value={passwordConfirmation}
+            onChangeText={setPasswordConfirmation}
+            secureTextEntry={!showPassword}
+          />
+          <TouchableOpacity
+            style={styles.passwordVisibilityButton}
+            onPress={() => setShowPassword((visible) => !visible)}
+            accessibilityRole="button"
+            accessibilityLabel={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+          >
+            <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={21} color="#777" />
+          </TouchableOpacity>
+        </View>
+        {passwordConfirmation.length > 0 && password !== passwordConfirmation ? (
+          <Text style={styles.validationText}>Las contraseñas no coinciden.</Text>
+        ) : null}
 
         <TouchableOpacity style={styles.primaryButton} onPress={handleRegister} disabled={loading}>
           {loading ? <ActivityIndicator color="#FAFFFF" /> : <Ionicons name="person-add-outline" size={18} color="#FAFFFF" />}
@@ -88,7 +124,9 @@ export default function RegisterScreen() {
         </TouchableOpacity>
       </View>
       </View>
-    </KeyboardAwareScreen>
+      </KeyboardAwareScreen>
+      <AppModal visible={!!modal} title={modal?.title || ''} message={modal?.message} onClose={() => setModal(null)} />
+    </>
   );
 }
 
@@ -110,7 +148,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     marginTop: 8,
-    color: '#666',
+    color: '#5F5759',
     fontFamily: 'BaiJamjuree',
     lineHeight: 20,
   },
@@ -170,5 +208,10 @@ const styles = StyleSheet.create({
   secondaryButtonText: {
     color: '#d32f2f',
     fontFamily: 'BaiJamjuree-Bold',
+  },
+  validationText: {
+    color: '#B5222A',
+    fontSize: 12,
+    fontFamily: 'BaiJamjuree',
   },
 });

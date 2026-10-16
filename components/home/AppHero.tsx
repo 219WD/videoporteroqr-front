@@ -1,12 +1,15 @@
 import { Image, Text, View, StyleSheet } from "react-native"
 
-export const AppHero = () => {
+export const AppHero = ({ total, unread }: { total: number; unread: number }) => {
   return (
   <View style={styles.headerStack}>
     <View style={styles.hero}>
       <View style={styles.heroCopy}>
         <Text style={styles.kicker}>Inicio</Text>
         <Text style={styles.title}>Panel principal</Text>
+        <Text style={styles.summary}>
+          {total === 0 ? 'Tus conversaciones aparecerán aquí' : `${total} conversación${total === 1 ? '' : 'es'} · ${unread} sin leer`}
+        </Text>
       </View>
 
       <View style={styles.heroBadge}>
@@ -57,7 +60,7 @@ const styles = StyleSheet.create({
     height: 46,
   },
   kicker: {
-    color: 'rgba(255,255,255,0.8)',
+    color: 'rgba(255,255,255,0.92)',
     fontFamily: 'BaiJamjuree-Bold',
     fontSize: 12,
     textTransform: 'uppercase',
@@ -68,6 +71,12 @@ const styles = StyleSheet.create({
     color: '#FAFFFF',
     fontFamily: 'BaiJamjuree-Bold',
     fontSize: 26,
+  },
+  summary: {
+    marginTop: 8,
+    color: 'rgba(255,255,255,0.94)',
+    fontFamily: 'BaiJamjuree',
+    fontSize: 13,
   },
   card: {
     flexDirection: 'row',

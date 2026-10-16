@@ -46,9 +46,9 @@ export function AuthProvider({ children }) {
     await loadUser();
   }
 
-  async function login(email, password) {
+  async function login(email, password, rememberMe = false) {
     try {
-      const { data } = await api.post('/auth/login', { email, password });
+      const { data } = await api.post('/auth/login', { email, password, rememberMe });
 
       await AsyncStorage.setItem('token', data.token);
       setUser(data.user);
@@ -61,12 +61,13 @@ export function AuthProvider({ children }) {
     }
   }
 
-  async function register(name, email, password, role) {
+  async function register(name, email, password, passwordConfirmation, role) {
     try {
       const { data } = await api.post('/auth/register', {
         name,
         email,
         password,
+        passwordConfirmation,
         role,
       });
 
@@ -84,12 +85,13 @@ export function AuthProvider({ children }) {
     }
   }
 
-  async function registerHost(name, email, password) {
+  async function registerHost(name, email, password, passwordConfirmation) {
     try {
       const { data } = await api.post('/auth/register', {
         name,
         email,
         password,
+        passwordConfirmation,
       });
 
       if (data.token) {
@@ -142,12 +144,23 @@ export function AuthProvider({ children }) {
     }
   }
 
-  async function resetPassword(email, otp, newPassword) {
+  async function resendPasswordResetOtp(email) {
+    try {
+      const { data } = await api.post('/auth/resend-password-otp', { email });
+      return data;
+    } catch (error) {
+      log.error('resendPasswordResetOtp error:', error);
+      throw error;
+    }
+  }
+
+  async function resetPassword(email, otp, newPassword, passwordConfirmation) {
     try {
       const { data } = await api.post('/auth/reset-password', {
         email,
         otp,
         newPassword,
+        passwordConfirmation,
       });
 
       if (data.token) {
@@ -181,6 +194,7 @@ export function AuthProvider({ children }) {
     verifyEmail,
     resendEmailOtp,
     forgotPassword,
+    resendPasswordResetOtp,
     resetPassword,
     logout,
     refreshUser,

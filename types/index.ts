@@ -2,6 +2,7 @@ export type ConversationItem = {
   id: string;
   conversationId: string;
   callId?: string;
+  qrCode?: string | null;
   guestName: string;
   status: string;
   response?: string | null;

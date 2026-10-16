@@ -14,8 +14,8 @@ Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldPlaySound: true,
     shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
+    shouldShowBanner: AppState.currentState !== 'active',
+    shouldShowList: AppState.currentState !== 'active',
   }),
 });
 
@@ -57,12 +57,31 @@ function extractNotificationData(item: any) {
 }
 
 function getNotificationId(data: any) {
-  return data?.notificationId || null;
+  return typeof data?.notificationId === 'string' && data.notificationId.trim()
+    ? data.notificationId.trim()
+    : null;
+}
+
+function getConversationId(data: any) {
+  const value = data?.conversationId || data?.callId || data?.params?.callId;
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function getResponseIdentity(response: any, data: any) {
+  const notificationId = getNotificationId(data);
+  const requestIdentifier = response?.notification?.request?.identifier || response?.request?.identifier;
+
+  return notificationId || requestIdentifier || [
+    data?.screen || '',
+    getConversationId(data) || '',
+    data?.type || '',
+    data?.message || '',
+  ].join('|');
 }
 
 function navigateFromNotification(data: any) {
   const notificationId = getNotificationId(data);
-  const targetConversationId = data?.conversationId || data?.callId || data?.params?.callId || null;
+  const targetConversationId = getConversationId(data);
 
   log.info('navigate:start', {
     notificationId,
@@ -81,13 +100,27 @@ function navigateFromNotification(data: any) {
     markNotificationSeen(notificationId);
   }
 
-  const screen = data?.screen;
+  const screen = typeof data?.screen === 'string' && data.screen.trim() ? data.screen.trim() : null;
   if (!screen && !targetConversationId) {
-    return;
+    log.warn('navigate:missing-target', { notificationId });
+    return false;
+  }
+
+  if (targetConversationId) {
+    router.push(`/chat/${encodeURIComponent(targetConversationId)}`);
+    log.info('navigate:done', {
+      notificationId,
+      pathname: `/chat/${encodeURIComponent(targetConversationId)}`,
+      params: { callId: targetConversationId },
+    });
+    return true;
   }
 
   const pathname = screen || '/chat/[callId]';
-  const params = data?.params || (targetConversationId ? { callId: targetConversationId } : {});
+  const params = {
+    ...(data?.params && typeof data.params === 'object' ? data.params : {}),
+    ...(targetConversationId ? { callId: targetConversationId } : {}),
+  };
 
   router.push({
     pathname,
@@ -99,6 +132,8 @@ function navigateFromNotification(data: any) {
     pathname,
     params,
   });
+
+  return true;
 }
 
 export default function PushNotificationBridge() {
@@ -108,7 +143,7 @@ export default function PushNotificationBridge() {
     token: null,
   });
   const appStateRef = useRef(AppState.currentState);
-  const lastHandledResponseRef = useRef('');
+  const handledResponseKeysRef = useRef(new Set<string>());
 
   useEffect(() => {
     let active = true;
@@ -118,11 +153,16 @@ export default function PushNotificationBridge() {
 
     async function registerPushToken() {
       try {
-        if (!Device.isDevice) return;
-        if (!user?.id) return;
+        if (!user?.id) {
+          log.warn('register:skip-no-user');
+          return;
+        }
 
         const projectId = getProjectId();
-        if (!projectId) return;
+        if (!projectId) {
+          log.warn('register:skip-no-project-id');
+          return;
+        }
 
         log.info('register:start', {
           userId: user?.id || null,
@@ -138,7 +178,10 @@ export default function PushNotificationBridge() {
           finalStatus = status;
         }
 
-        if (finalStatus !== 'granted') return;
+        if (finalStatus !== 'granted') {
+          log.warn('register:permission-denied', { status: finalStatus });
+          return;
+        }
 
         const deviceId = await getDeviceId();
         const tokenResponse = await Notifications.getExpoPushTokenAsync({ projectId });
@@ -175,7 +218,8 @@ export default function PushNotificationBridge() {
           userId: user?.id || null,
           tokenPrefix: expoPushToken.slice(0, 18),
         });
-      } catch {
+      } catch (error: any) {
+        log.warn('register:failed', { message: error?.message || 'unknown-error' });
         // Keep the bridge non-blocking.
       }
     }
@@ -184,7 +228,7 @@ export default function PushNotificationBridge() {
       const actionIdentifier = response?.actionIdentifier;
       const data = extractNotificationData(response);
       const notificationId = getNotificationId(data);
-      const responseKey = `${notificationId || 'no-id'}:${actionIdentifier || 'default'}`;
+      const responseKey = getResponseIdentity(response, data);
 
       log.info('response:received', {
         responseKey,
@@ -195,19 +239,28 @@ export default function PushNotificationBridge() {
         params: data?.params || null,
       });
 
-      if (responseKey === lastHandledResponseRef.current) {
+      if (handledResponseKeysRef.current.has(responseKey)) {
         log.info('response:skip-duplicate', { responseKey });
         return;
       }
-
-      lastHandledResponseRef.current = responseKey;
 
       if (notificationId && hasSeenNotificationId(notificationId)) {
         log.info('response:skip-seen', { notificationId, responseKey });
         return;
       }
 
-      navigateFromNotification(data);
+      // Claim synchronously before router.push so bootstrap and the listener
+      // cannot both navigate for the same native notification response.
+      handledResponseKeysRef.current.add(responseKey);
+      if (handledResponseKeysRef.current.size > 100) {
+        const first = handledResponseKeysRef.current.values().next().value;
+        if (first) handledResponseKeysRef.current.delete(first);
+      }
+
+      const navigated = navigateFromNotification(data);
+      if (!navigated) {
+        log.info('response:skip-no-navigation-target', { responseKey });
+      }
 
       try {
         await Notifications.clearLastNotificationResponseAsync();

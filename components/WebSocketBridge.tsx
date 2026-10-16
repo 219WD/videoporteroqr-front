@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useRef } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { connectSocket, disconnectSocket, getSocket } from '../utils/socket';
 import { createLogger } from '../utils/logger';
+import { publishInternalNotification } from '../utils/internalNotifications';
 
 const log = createLogger('websocket-bridge');
 
@@ -42,6 +43,7 @@ export default function WebSocketBridge() {
     socket.on('disconnect', (reason: string) => {
       log.info('disconnect', { socketId: socket.id || null, reason: reason || null });
     });
+    socket.on('notification:incoming', publishInternalNotification);
 
     if (socket.connected) {
       handleConnect();
@@ -49,6 +51,7 @@ export default function WebSocketBridge() {
 
     return () => {
       socketRef.current?.off('connect', handleConnect);
+      socketRef.current?.off('notification:incoming', publishInternalNotification);
       socketRef.current?.disconnect();
       disconnectSocket();
       socketRef.current = null;
