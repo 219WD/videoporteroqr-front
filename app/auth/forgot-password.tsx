@@ -1,7 +1,8 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import React, { useContext, useState } from 'react';
-import { ActivityIndicator, Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import AppModal from '../../components/AppModal';
 import KeyboardAwareScreen from '../../components/KeyboardAwareScreen';
 import { AuthContext } from '../../context/AuthContext';
 
@@ -9,33 +10,39 @@ export default function ForgotPasswordScreen() {
   const { forgotPassword } = useContext(AuthContext);
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
+  const [modal, setModal] = useState<{ title: string; message: string } | null>(null);
 
   const handleSend = async () => {
     try {
       setLoading(true);
-      await forgotPassword(email.trim());
+      const result = await forgotPassword(email.trim());
       router.push({
         pathname: '/auth/reset-password',
-        params: { email: email.trim() },
+        params: {
+          email: email.trim(),
+          expiresAt: result?.expiresAt || undefined,
+          resendAvailableAt: result?.nextAllowedAt || undefined,
+        },
       });
     } catch (error: any) {
-      Alert.alert('No pudimos iniciar la recuperacion', error.response?.data?.error || 'Revisa el correo e intenta otra vez.');
+      setModal({ title: 'No pudimos iniciar la recuperación', message: error.response?.data?.error || 'Revisá el correo e intentá otra vez.' });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <KeyboardAwareScreen contentStyle={styles.content}>
+    <>
+      <KeyboardAwareScreen contentStyle={styles.content}>
       <View style={styles.container}>
-        <Text style={styles.title}>Recuperar contrasena</Text>
-        <Text style={styles.subtitle}>Te enviaremos un codigo por correo para crear una nueva contrasena.</Text>
+        <Text style={styles.title}>Recuperar contraseña</Text>
+        <Text style={styles.subtitle}>Te enviaremos un código por correo para crear una nueva contraseña.</Text>
 
         <View style={styles.form}>
         <TextInput
           style={styles.input}
           placeholder="Email"
-          placeholderTextColor="#999"
+          placeholderTextColor="#6B6265"
           value={email}
           onChangeText={setEmail}
           autoCapitalize="none"
@@ -44,7 +51,7 @@ export default function ForgotPasswordScreen() {
 
         <TouchableOpacity style={styles.primaryButton} onPress={handleSend} disabled={loading}>
           {loading ? <ActivityIndicator color="#FAFFFF" /> : <Ionicons name="mail-outline" size={18} color="#FAFFFF" />}
-          <Text style={styles.primaryButtonText}>Enviar codigo</Text>
+          <Text style={styles.primaryButtonText}>Enviar código</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.secondaryButton} onPress={() => router.back()}>
@@ -52,7 +59,9 @@ export default function ForgotPasswordScreen() {
         </TouchableOpacity>
       </View>
       </View>
-    </KeyboardAwareScreen>
+      </KeyboardAwareScreen>
+      <AppModal visible={!!modal} title={modal?.title || ''} message={modal?.message} onClose={() => setModal(null)} />
+    </>
   );
 }
 
@@ -74,7 +83,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     marginTop: 8,
-    color: '#666',
+    color: '#5F5759',
     fontFamily: 'BaiJamjuree',
     lineHeight: 20,
   },

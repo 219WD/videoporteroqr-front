@@ -7,9 +7,12 @@ import { Text, TouchableOpacity, View, StyleSheet } from "react-native";
 
 export const ConversationCard = ({ item }: { item: ConversationItem }) => {
   const log = createLogger('ConversationCard');
-  const preview = item.lastMessageText || 'Sin mensajes todavia';
+  const preview = item.lastMessageText || 'Sin mensajes todavía';
+  const expired = isConversationExpired(item);
   const statusLabel =
-    item.status === 'answered'
+    expired
+      ? 'Expirada'
+      : item.status === 'answered'
       ? 'Respondida'
       : item.status === 'timeout'
         ? 'Expirada'
@@ -48,11 +51,16 @@ export const ConversationCard = ({ item }: { item: ConversationItem }) => {
             {deliveryMark ? <Text style={styles.deliveryMark}>{deliveryMark}</Text> : null}
           </View>
         </View>
-        <Text style={styles.email}>{statusLabel}</Text>
+        <View style={styles.statusRow}>
+          <View style={[styles.statusDot, expired ? styles.statusDotMuted : item.status === 'answered' ? styles.statusDotSuccess : styles.statusDotPending]} />
+          <Text style={[styles.email, expired ? styles.expiredText : null]}>{statusLabel}</Text>
+          {item.messageCount > 0 ? <Text style={styles.messageCount}>{item.messageCount} {item.messageCount === 1 ? 'mensaje' : 'mensajes'}</Text> : null}
+        </View>
+        <Text style={styles.relationText}>QR {item.qrCode ? item.qrCode.slice(0, 8) : 'actual'} · Visitante anónimo</Text>
         <Text style={styles.preview} numberOfLines={2}>
           {item.lastMessageSender === 'host' ? `Tu: ${preview}` : preview}
         </Text>
-        {item.hostUnreadCount > 0 && !isConversationExpired(item) && (
+        {item.hostUnreadCount > 0 && !expired && (
           <View style={styles.badge}>
             <Text style={styles.badgeText}>{item.hostUnreadCount}</Text>
           </View>
@@ -149,7 +157,7 @@ const styles = StyleSheet.create({
   },
   time: {
     fontSize: 11,
-    color: '#999',
+    color: '#6B6265',
     fontFamily: 'BaiJamjuree',
   },
   timeWrap: {
@@ -164,10 +172,18 @@ const styles = StyleSheet.create({
   },
   email: {
     marginTop: 2,
-    color: '#666',
+    color: '#5F5759',
     fontFamily: 'BaiJamjuree',
     fontSize: 13,
   },
+  statusRow: { marginTop: 2, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  statusDot: { width: 7, height: 7, borderRadius: 4 },
+  statusDotPending: { backgroundColor: '#E09A2D' },
+  statusDotSuccess: { backgroundColor: '#2E9B63' },
+  statusDotMuted: { backgroundColor: '#9B9294' },
+  expiredText: { color: '#6B6265' },
+  messageCount: { color: '#6B6265', fontFamily: 'BaiJamjuree', fontSize: 11 },
+  relationText: { marginTop: 5, color: '#8A3237', fontFamily: 'BaiJamjuree', fontSize: 11 },
   preview: {
     marginTop: 10,
     color: '#444',

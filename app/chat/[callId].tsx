@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { useChatByCallIdPage } from '@/hooks/useChatByCallIdPage';
+import AppModal from '@/components/AppModal';
 
 function formatTimeLeft(ms: number) {
   const safe = Math.max(0, ms);
@@ -24,7 +25,9 @@ export default function ChatScreen() {
   const {
     props: {
       insets,
+      messageListRef,
       conversation,
+      qrCode,
       conversationTimeoutAt,
       expired,
       timeLeftMs,
@@ -34,8 +37,10 @@ export default function ChatScreen() {
       setMessage,
       error,
       sending,
+      visitorTyping,
+      exitConfirmVisible,
     },
-    methods: { goBackFromChat, keyExtractor, sendMessage },
+    methods: { goBackFromChat, cancelExit, confirmExit, keyExtractor, sendMessage, handleMessageChange },
   } = useChatByCallIdPage();
 
   return (
@@ -57,6 +62,7 @@ export default function ChatScreen() {
                 ? 'La conversacion termino'
                 : `Restan ${formatTimeLeft(timeLeftMs)}`}
           </Text>
+          <Text style={styles.relationText}>Propietario: vos · QR {qrCode ? qrCode.slice(0, 8) : 'actual'} · Visitante anónimo</Text>
         </View>
       </View>
 
@@ -67,7 +73,17 @@ export default function ChatScreen() {
         </View>
       ) : (
         <>
+          {expired ? (
+            <View style={styles.expiredBanner}>
+              <Ionicons name="time-outline" size={20} color="#9B2C2C" />
+              <View style={styles.expiredBannerText}>
+                <Text style={styles.expiredTitle}>Conversación vencida</Text>
+                <Text style={styles.expiredDescription}>Ya no se pueden enviar nuevos mensajes.</Text>
+              </View>
+            </View>
+          ) : null}
           <FlatList
+            ref={messageListRef}
             style={styles.messagesList}
             inverted
             data={[...filteredMessages].reverse()}
@@ -116,13 +132,20 @@ export default function ChatScreen() {
             }
           />
 
+          {visitorTyping ? (
+            <View style={styles.typingIndicator}>
+              <View style={styles.typingDot} />
+              <Text style={styles.typingText}>El visitante está escribiendo…</Text>
+            </View>
+          ) : null}
+
           <View style={[styles.composer, { paddingBottom: 8 }]}>
             <TextInput
               style={styles.input}
               placeholder={expired ? 'La conversacion termino' : 'Escribi un mensaje...'}
               placeholderTextColor="#999"
               value={message}
-              onChangeText={setMessage}
+              onChangeText={handleMessageChange}
               multiline
               editable={!expired}
             />
@@ -142,6 +165,16 @@ export default function ChatScreen() {
           <Text style={styles.toastText}>{error}</Text>
         </View>
       ) : null}
+      <AppModal
+        visible={exitConfirmVisible}
+        title="¿Salir del chat?"
+        message="El texto escrito todavía no fue enviado y se perderá."
+        onClose={cancelExit}
+        actions={[
+          { label: 'Seguir escribiendo', variant: 'secondary' },
+          { label: 'Salir', variant: 'destructive', onPress: confirmExit },
+        ]}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -184,6 +217,7 @@ const styles = StyleSheet.create({
     fontFamily: 'BaiJamjuree',
     fontSize: 12,
   },
+  relationText: { marginTop: 4, color: '#8A3237', fontFamily: 'BaiJamjuree', fontSize: 10 },
   messagesList: {
     flex: 1,
   },
@@ -332,4 +366,15 @@ const styles = StyleSheet.create({
     color: '#B3261E',
     fontFamily: 'BaiJamjuree',
   },
+  expiredBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    marginHorizontal: 14, marginTop: 12, padding: 12, borderRadius: 12,
+    backgroundColor: '#FFF4F2', borderWidth: 1, borderColor: '#F3C5BE',
+  },
+  expiredBannerText: { flex: 1 },
+  expiredTitle: { color: '#9B2C2C', fontFamily: 'BaiJamjuree-Bold', fontSize: 13 },
+  expiredDescription: { color: '#7A3E3E', fontFamily: 'BaiJamjuree', fontSize: 12, marginTop: 2 },
+  typingIndicator: { flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 18, paddingBottom: 7 },
+  typingDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#d32f2f' },
+  typingText: { color: '#777', fontFamily: 'BaiJamjuree', fontSize: 12, fontStyle: 'italic' },
 });

@@ -12,6 +12,7 @@ import { AuthProvider } from "../context/AuthContext";
 import { AuthContext } from "../context/AuthContext";
 import PushNotificationBridge from "../components/PushNotificationBridge";
 import WebSocketBridge from "../components/WebSocketBridge";
+import InAppNotificationHost from "../components/InAppNotificationHost";
 import { setupConsoleLogging } from '../utils/logger';
 
 setupConsoleLogging();
@@ -74,6 +75,7 @@ export default function RootLayout() {
       <AuthProvider>
         <PushNotificationBridge />
         <WebSocketBridge />
+        <InAppNotificationHost />
         <AppNavigator appReady={fontsLoaded} />
       </AuthProvider>
     </SafeAreaProvider>
