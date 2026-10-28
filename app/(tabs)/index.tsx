@@ -20,7 +20,11 @@ const plateStatusNoticeCopy: Record<Exclude<PlateRequestStatus, 'none'>, { title
 };
 
 function formatInstallationDateTime(value: string) {
-  return new Intl.DateTimeFormat('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value));
+  try {
+    return new Intl.DateTimeFormat('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value));
+  } catch {
+    return new Date(value).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
 }
 
 export default function HomeScreen() {

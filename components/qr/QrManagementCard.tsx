@@ -35,10 +35,14 @@ function plateStatusLabel(status: PlateRequestStatus) {
 }
 
 function formatInstallationDateTime(value: string) {
-  return new Intl.DateTimeFormat('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value));
+  try {
+    return new Intl.DateTimeFormat('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value));
+  } catch {
+    return new Date(value).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
 }
 
-export function QrManagementCard({ qrDataUrl, qrUrl, status, plateStatus, plateRequestStatus, plateInstalledAt, installationScheduledAt, plateRequestHistory, actionError, refreshing, onReload, reportAsset, setQrAvailability, initialRequestOpen = false }: Props) {
+export function QrManagementCard({ qrDataUrl, qrUrl, status, plateStatus = 'active', plateRequestStatus = 'none', plateInstalledAt = null, installationScheduledAt = null, plateRequestHistory = [], actionError, refreshing, onReload, reportAsset, setQrAvailability, initialRequestOpen = false }: Props) {
   const [sharing, setSharing] = useState(false);
   const [shareError, setShareError] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{ title: string; message: string; run: () => Promise<void> } | null>(null);
@@ -46,7 +50,7 @@ export function QrManagementCard({ qrDataUrl, qrUrl, status, plateStatus, plateR
   const [shippingAddress, setShippingAddress] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [plateRequestError, setPlateRequestError] = useState<string | null>(null);
-  const requestCopy = plateRequestCopy[plateRequestStatus];
+  const requestCopy = plateRequestCopy[plateRequestStatus] || plateRequestCopy.none;
   const requestInProgress = ['pending', 'in_production', 'ready_for_installation', 'installed'].includes(plateRequestStatus) || (plateRequestStatus === 'none' && plateStatus === 'replacement_requested');
 
   const askConfirmation = (title: string, message: string, run: () => Promise<void>) => {
